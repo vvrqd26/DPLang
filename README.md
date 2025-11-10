@@ -165,13 +165,14 @@ result = x > 10 ? "big" : "small"
 # 嵌套三元
 grade = score >= 90 ? "A" : score >= 60 ? "B" : "C"
 
-# if-elif-else 语句
+# if-else 语句
 if temperature > 30:
     level = "hot"
-elif temperature > 20:
-    level = "warm"
 else:
-    level = "cold"
+    if temperature > 20:
+        level = "warm"
+    else:
+        level = "cold"
 ```
 
 ### 流式数据处理
@@ -231,14 +232,14 @@ return [stats, cleaned]
 
 **math.dp** (包文件)
 ```dplang
--- PACKAGE math --
+package math
 
 PI = 3.14159
 
-def circle_area(r):
+circle_area(r):
     return PI * r * r
 
-def square(x):
+square(x):
     return x * x
 ```
 
