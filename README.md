@@ -88,6 +88,112 @@ DPLang 是一个**纯粹的语言解释器**，专注于提供简洁而强大的
 - ✅ 包缓存机制，避免重复加载
 - ✅ 包变量和函数导出
 
+## 📝 语言特性展示
+
+### 中文编程支持
+
+```dplang
+价格 = 100
+数量 = 5
+总价 = 价格 * 数量
+折扣 = 总价 > 500 ? 总价 * 0.1 : 0
+实际支付 = 总价 - 折扣
+```
+
+### 向量化运算
+
+```dplang
+# 数组逐元素运算
+prices = [100, 200, 300]
+adjusted = prices * 1.1        # [110, 220, 330]
+
+# 逻辑运算返回布尔数组
+high = prices > 150            # [false, true, true]
+
+# 数组间运算
+a = [1, 2, 3]
+b = [4, 5, 6]
+c = a + b                      # [5, 7, 9]
+```
+
+### Lambda 表达式
+
+```dplang
+# 单参数 Lambda
+doubled = map([1, 2, 3], x -> x * 2)
+
+# 多参数 Lambda
+result = reduce([1,2,3], 0, (acc, x) -> acc + x)
+
+# 管道运算符
+result = [1, 2, 3] |> map(x -> x * 2) |> filter(x -> x > 3)
+```
+
+### 条件表达式
+
+```dplang
+# 三元表达式
+result = x > 10 ? "big" : "small"
+
+# 嵌套三元
+grade = score >= 90 ? "A" : score >= 60 ? "B" : "C"
+
+# if-elif-else 语句
+if temperature > 30:
+    level = "hot"
+elif temperature > 20:
+    level = "warm"
+else:
+    level = "cold"
+```
+
+### 流式数据处理
+
+```dplang
+-- INPUT close:number --
+-- OUTPUT ma5:number, change:number --
+
+# 访问历史数据（时间序列）
+prev_close = close[-1]         # 上一行的 close
+
+# 计算涨跌幅
+change = prev_close == null ? 0 : 
+         (close - prev_close) / prev_close * 100
+
+# 手动计算5日均线
+history = close[-4:0]          # 最近5个值
+ma5 = sum(history) / length(history)
+
+return [ma5, change]
+```
+
+### 包系统
+
+**math.dp** (包文件)
+```dplang
+-- PACKAGE math --
+
+PI = 3.14159
+
+def circle_area(r):
+    return PI * r * r
+
+def square(x):
+    return x * x
+```
+
+**main.dp** (主脚本)
+```dplang
+-- IMPORT math --
+-- INPUT radius:number --
+-- OUTPUT area:number, diameter:number --
+
+area = math.circle_area(radius)
+diameter = 2 * math.PI * radius
+
+return [area, diameter]
+```
+
 ## 🚀 快速开始
 
 ### 安装
@@ -206,122 +312,102 @@ cargo test executor
 
 ## 🏗️ 架构设计
 
+### 执行流程
+
 ```
-源代码 (Source Code)
+源代码 (*.dp)
     ↓
-词法分析 (Lexer) → Tokens
+词法分析 (Lexer)
     ↓
-语法分析 (Parser) → AST
+Tokens 流
     ↓
-执行器 (Executor) → 运行时值 (Value)
+语法分析 (Parser)
+    ↓
+AST (抽象语法树)
+    ↓
+语义分析 (Semantic) - 可选
+    ↓
+执行器 (Executor)
+    ↓
+输出结果 (Value)
+```
+
+### 模块结构
+
+```
+dplang/
+├── lexer        # 词法分析：源码 -> Tokens
+├── parser       # 语法分析：Tokens -> AST
+├── semantic     # 语义分析：AST 验证
+├── runtime      # 运行时类型系统
+├── executor/    # 执行引擎
+│   ├── mod.rs            # 主执行器
+│   ├── builtin.rs        # 内置函数
+│   ├── context.rs        # 执行上下文
+│   ├── data_stream.rs    # 流式执行器
+│   └── ...               # 其他模块
+├── package_loader  # 包加载系统
+└── api          # 公共 API 接口
 ```
 
 ## 📂 项目结构
 
 ```
 DPLang/
-├── src/                    # 核心源代码
-│   ├── executor/            # 执行器模块
-│   ├── orchestration/       # 任务编排系统
-│   ├── parser/              # 语法分析器
-│   ├── streaming/           # 流式处理
-│   ├── lexer.rs             # 词法分析器
-│   ├── runtime.rs           # 运行时值和运算
-│   ├── semantic.rs          # 语义分析器
-│   ├── indicators.rs        # 技术指标库
-│   ├── package_loader.rs    # 包加载器
-│   ├── api.rs               # API 接口
-│   ├── lib.rs               # 库入口
-│   └── main.rs              # 可执行程序入口
-├── benches/                 # 性能基准测试
-│   ├── indicator_benchmarks.rs
-│   └── optimization_benchmarks.rs
-├── tests/                   # 集成测试 (预留)
-├── packages/                # DPLang 标准包库
-│   └── math.dp              # 数学库包
-├── scripts/                 # 测试和工具脚本
-│   ├── generate_test_data.py
-│   ├── generate_stock_data.py
-│   ├── performance_test.py
-│   ├── extract_result.py
-│   └── test_stock_indicators.ps1
-├── docs/                    # 项目文档
-│   └── testing/             # 测试文档
-│       └── TEST_SUMMARY.md
-├── test_data/               # 测试数据目录 (Git 忽略)
-│   └── .gitkeep
-├── output/                  # 运行输出目录 (Git 忽略)
-│   └── .gitkeep
-├── Cargo.toml               # Rust 项目配置
-├── Cargo.lock               # 依赖锁定文件
-├── README.md                # 项目主文档
-├── QUICKSTART.md            # 快速开始指南
-├── DAEMON_MODE_GUIDE.md     # 守护进程模式指南
-└── ORCHESTRATION_QUICKSTART.md  # 编排系统快速开始
+├── src/                  # 核心源代码
+│   ├── executor/        # 执行器模块
+│   ├── parser/          # 语法分析器
+│   ├── lexer.rs         # 词法分析器
+│   ├── runtime.rs       # 运行时类型系统
+│   ├── semantic.rs      # 语义分析器
+│   ├── package_loader.rs # 包加载器
+│   ├── api.rs           # API 接口
+│   ├── lib.rs           # 库入口
+│   └── main.rs          # CLI 程序入口
+├── scripts/              # 测试和工具脚本
+├── Cargo.toml            # 项目配置
+├── README.md             # 项目文档
+└── QUICKSTART.md         # 快速开始指南
 ```
 
-### 目录说明
-
-- **src/**: 核心源代码，包含词法分析、语法分析、执行器等模块
-- **benches/**: 性能基准测试，用于性能跟踪和优化
-- **tests/**: 集成测试目录 (预留使用)
-- **examples/**: 示例脚本和配置文件，帮助用户快速上手
-- **packages/**: DPLang 标准包库，存放可重用的包文件
-- **scripts/**: 测试数据生成、性能测试等工具脚本
-- **docs/**: 项目文档，包含测试总结等详细文档
-- **test_data/**: 测试数据目录 (由 Git 忽略)
-- **output/**: 运行输出目录 (由 Git 忽略)
 
 
 
+## ⚠️ 当前限制
 
-## 🔜 下一步计划
+作为一个专注于语言核心的解释器，以下功能需要通过扩展机制实现：
 
-### 最近更新 (v0.3.0) - 2024-11-10 ✅ 已完成
-1. **场景化命令行接口** ✅ 已完成
-   - ✅ 新增 `calc` 命令 - 单次指标计算
-   - ✅ 新增 `backtest` 命令 - 策略回测（自动统计收益、胜率）
-   - ✅ 新增 `screen` 命令 - 策略选股（批量筛选）
-   - ✅ 新增 `monitor` 命令 - 实时监控（取代 daemon）
-   - ✅ 新增 `server` 命令 - 任务编排（取代 orchestrate）
-   - ✅ 创建完整的场景化使用指南 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md)
-   - ✅ 提供四大场景示例脚本（指标计算、回测、选股、监控）
+- 业务相关的内置函数（如技术指标、时间函数等）
+- 高级类型检查和类型推导
+- JIT 编译和并行优化
+- 标准库（需要用户通过包机制实现）
 
+## 🔜 后续发展方向
 
+1. **扩展机制完善** - 提供更便捷的函数注册和扩展接口
+2. **性能优化** - 并行执行、向量化运算、内存优化
+3. **工具链** - 语法高亮、LSP支持、调试工具
+4. **标准库** - 官方维护的常用包库
+5. **生态建设** - 包管理、文档生成、社区建设
 
-### 后续计划
-2. **性能优化** - 并行执行、向量化运算
-3. **类型推导** - 更智能的类型系统
-4. **调试工具** - 断点、变量监视、执行跟踪
-5. **标准库扩展** - 字符串处理、日期时间、JSON解析
+## 📖 文档
 
-## 📄 参考文档
+- [快速开始指南](QUICKSTART.md) - 5分钟上手 DPLang
 
-### 用户文档
-- [**场景化使用指南**](SCENARIOS_GUIDE.md) - **四大场景完整使用指南**（推荐）
-- [语言参考手册](docs/LANGUAGE_GUIDE.md) - 完整的语言使用指南
-- [快速开始指南](QUICKSTART.md) - 快速上手
-- [守护进程模式指南](DAEMON_MODE_GUIDE.md) - 长驻服务模式
-- [编排系统快速开始](ORCHESTRATION_QUICKSTART.md) - 任务编排系统
+## 💡 使用场景
 
-### 开发者文档（内部）
-- [核心设计](dev_logs/1.核心设计.md) - 设计原则和架构
-- [语法参考](dev_logs/2.语法参考.md) - 详细语法规范
-- [完整示例](dev_logs/5.完整示例.md) - 高级示例代码
-- [内置函数参考](dev_logs/4.内置函数参考.md) - 所有内置函数
-- [解释器实现设计](dev_logs/7.解释器实现设计.md) - 实现细节
+DPLang 适合以下场景：
 
-## 📜 License
+- **数据处理管道** - CSV/JSON 数据转换和清洗
+- **嵌入式脚本引擎** - 为应用提供可配置的计算逻辑
+- **规则引擎** - 业务规则的动态配置和执行
+- **数据分析工具** - 快速原型开发和数据探索
+- **教学工具** - 编译原理和解释器实现学习
 
-本项目采用 MIT License with Commercial Use Notice 许可协议。
+## 📜 开源协议
 
-**使用条款：**
-- ✅ 可自由使用、修改、分发，但需注明原作者
-- ✅ 小规模商业应用和学习使用不受限制
-
-
-详见 [LICENSE](LICENSE) 文件。
+MIT License
 
 ---
 
-**DPLang** - 让数据分析更简单 🚀
+**DPLang** - 简单、高效、AI友好的数据处理语言 🚀
