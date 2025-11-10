@@ -396,6 +396,9 @@ impl Value {
 pub struct RuntimeError {
     pub error_type: ErrorType,
     pub message: String,
+    pub line: Option<usize>,        // 新增：错误行号
+    pub column: Option<usize>,      // 新增：错误列号
+    pub context: Option<String>,    // 新增：错误上下文
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -414,6 +417,9 @@ impl RuntimeError {
         RuntimeError {
             error_type: ErrorType::ZeroDivision,
             message: "除零错误".to_string(),
+            line: None,
+            column: None,
+            context: None,
         }
     }
     
@@ -421,6 +427,9 @@ impl RuntimeError {
         RuntimeError {
             error_type: ErrorType::TypeError,
             message: message.to_string(),
+            line: None,
+            column: None,
+            context: None,
         }
     }
     
@@ -428,6 +437,9 @@ impl RuntimeError {
         RuntimeError {
             error_type: ErrorType::UndefinedVariable,
             message: format!("未定义的变量: {}", name),
+            line: None,
+            column: None,
+            context: None,
         }
     }
     
@@ -435,13 +447,41 @@ impl RuntimeError {
         RuntimeError {
             error_type: ErrorType::UndefinedFunction,
             message: format!("未定义的函数: {}", name),
+            line: None,
+            column: None,
+            context: None,
         }
+    }
+    
+    /// 添加位置信息
+    pub fn with_location(mut self, line: usize, column: usize) -> Self {
+        self.line = Some(line);
+        self.column = Some(column);
+        self
+    }
+    
+    /// 添加上下文信息
+    pub fn with_context(mut self, context: String) -> Self {
+        self.context = Some(context);
+        self
     }
 }
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "运行时错误: {}", self.message)
+        // 显示位置信息
+        if let (Some(line), Some(col)) = (self.line, self.column) {
+            write!(f, "运行时错误 [{}:{}]: {}", line, col, self.message)?;
+        } else {
+            write!(f, "运行时错误: {}", self.message)?;
+        }
+        
+        // 显示上下文信息
+        if let Some(ref ctx) = self.context {
+            write!(f, "\n  上下文: {}", ctx)?;
+        }
+        
+        Ok(())
     }
 }
 

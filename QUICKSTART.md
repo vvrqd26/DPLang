@@ -74,12 +74,9 @@ return [greeting]
 -- INPUT close:number --
 -- OUTPUT ma5:number, ma20:number, signal:string --
 
-# 获取最近20天的收盘价
-prices = window("close", 20)
-
 # 计算5日和20日均线
-ma5 = SMA(prices, 5)
-ma20 = SMA(prices, 20)
+ma5 = MA(close, 5)
+ma20 = MA(close, 20)
 
 # 生成交易信号
 signal = ma5 > ma20 ? "金叉" : "死叉"
@@ -94,11 +91,8 @@ return [ma5, ma20, signal]
 -- INPUT close:number, high:number, low:number --
 -- OUTPUT rsi:number, signal:string --
 
-# 获取历史数据
-close_prices = window("close", 14)
-
 # 计算RSI指标
-rsi = RSI(close_prices, 14)
+rsi = RSI(close, 14)
 
 # 判断超买超卖
 signal = rsi < 30 ? "超卖" : 
@@ -207,7 +201,7 @@ adjusted = prices * 1.1  # 全部上涨10%
 
 ```dplang
 # 获取前一天的收盘价
-prev_close = ref("close", 1)
+prev_close = close[-1]
 
 # 计算涨跌幅
 change = prev_close == null ? 0 : (close - prev_close) / prev_close * 100
@@ -217,7 +211,7 @@ change = prev_close == null ? 0 : (close - prev_close) / prev_close * 100
 
 1. **缩进敏感**：使用 4 个空格或 1 个 Tab 进行缩进
 2. **变量作用域**：在 if/else 块中定义的变量仅在该块内有效
-3. **历史数据不足**：使用 `ref()` 或 `window()` 时，历史不足会返回 `null`
+3. **历史数据不足**：使用 `close[-1]` 或 `close[-5:]` 时，历史不足会返回 `null`
 4. **精度控制**：需要高精度时使用 `-- PRECISION n --` 声明
 
 ## 🔧 调试技巧

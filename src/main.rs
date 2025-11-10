@@ -217,6 +217,18 @@ fn run_script_with_csv(script_path: &str, csv_path: &str) {
     
     println!("✅ CSV 解析成功，共 {} 行数据\n", input_matrix.len());
     
+    // 调试模式输出
+    if std::env::var("DPLANG_DEBUG").is_ok() {
+        println!("--- 🔍 调试信息 ---");
+        println!("脚本: {}", script_path);
+        println!("输入行数: {}", input_matrix.len());
+        if let Some(first_row) = input_matrix.get(0) {
+            let fields: Vec<String> = first_row.keys().cloned().collect();
+            println!("输入字段: {:?}", fields);
+        }
+        println!("---\n");
+    }
+    
     // 解析脚本
     let mut lexer = Lexer::new(&source);
     let tokens = match lexer.tokenize() {
