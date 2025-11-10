@@ -1,0 +1,51 @@
+# Stock Technical Indicators Calculation Task Configuration
+
+[global]
+default_window_size = 1000
+default_pool_size = 10
+default_pool_max_size = 100
+
+[[task]]
+id = "stock-indicators"
+name = "Stock Technical Indicators Analysis"
+enabled = true
+scripts = ["test_data/indicators.dp"]
+
+[task.schema]
+columns = [
+    { name = "date", type = "string", required = true },
+    { name = "stock_code", type = "string", required = true },
+    { name = "open", type = "number", required = true },
+    { name = "high", type = "number", required = true },
+    { name = "low", type = "number", required = true },
+    { name = "close", type = "number", required = true },
+    { name = "volume", type = "number", required = true }
+]
+
+[task.routing]
+enabled = true
+key_column = "stock_code"
+strategy = "hash"
+
+[task.compute_pool]
+initial_size = 10
+max_size = 50
+window_size = 1000
+auto_scale = false
+scale_threshold = 0.8
+
+[task.input]
+type = "stdin"
+format = "csv"
+buffer_size = 1024
+
+[task.output]
+type = "stdout"
+format = "csv"
+buffer_size = 1024
+auto_flush = false
+
+[task.error_handling]
+retry_count = 3
+skip_on_error = true
+log_errors = true

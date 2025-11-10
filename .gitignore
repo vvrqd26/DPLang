@@ -1,0 +1,40 @@
+# Rust 构建产物
+/target
+
+# 开发日志
+/dev_logs
+
+# 测试数据和输出
+/test_data/*.csv
+/test_data/*.json
+/output/
+*.csv
+!examples/**/*.csv
+
+# Python 临时文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 编辑器和 IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 操作系统
+Thumbs.db
+desktop.ini
+
+# 临时文件
+*.tmp
+*.log
+*.bak
+
+# 本地配置
+.env
+.env.local

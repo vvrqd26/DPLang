@@ -1,0 +1,9 @@
+# Multi-indicator technical analysis for 100 stocks
+
+-- INPUT date:string, stock_code:string, open:number, high:number, low:number, close:number, volume:number --
+-- OUTPUT stock_code:string, close:number, ma5:number, ma10:number, ma20:number --
+
+# Moving Averages
+ma5 = MA(close, 5)
+ma10 = MA(close, 10)
+ma20 = MA(close, 20)
