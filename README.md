@@ -218,46 +218,60 @@ doubled = map(prices, x -> x * 2)  # [200, 400, 600]
 filtered = filter(prices, x -> x > 150)  # [200, 300]
 ```
 
-### 时间序列引用 (ref 函数)
+### 时间序列访问（下标索引）
 ```dplang
 -- INPUT close:number --
--- OUTPUT ma2:number --
+-- OUTPUT ma2:number, 涨幅:number, 是否新高:bool --
 
-# ref("变量名", offset) - 引用历史值
-prev_close = ref("close", 1)  # 上一行的 close
-ma2 = prev_close == null ? close : (close + prev_close) / 2
+# 单值访问（负数下标表示历史）
+昨收 = close[-1]           # 上一行的 close
+前5天收盘 = close[-5]      # 第5行之前的 close
 
-return [ma2]
+# 切片访问（返回数组，引用语义，零拷贝）
+历史5天 = close[-5:0]      # 最近5个 + 当前，共61个
+过去5天 = close[-5:]       # 最近5个历史值（不含当前）
+
+# 计算指标
+涨幅 = (昨收 == null) ? 0 : (close - 昨收) / 昨收 * 100
+ma2 = (昨收 == null) ? close : (close + 昨收) / 2
+是否新高 = close >= max(...历史5天)
+
+return [ma2, 涨幅, 是否新高]
 ```
 
-### 扩展时间序列函数
-```dplang
--- INPUT close:number --
--- OUTPUT ma5:number, volatility:number --
-
-# past() - 获取过去 n 个周期的值数组
-prices_past = past("close", 5)  # [t-4, t-3, t-2, t-1, t]
-
-# window() - 滑动窗口（包含当前值）
-window_prices = window("close", 5)  # [t-4, t-3, t-2, t-1, t]
-
-# offset() - ref 的简化版本
-prev_close = offset("close", 1)  # 等同于 ref("close", 1)
-
-# 基于窗口计算指标
-ma5 = sum(window_prices) / 5
-volatility = max(window_prices) - min(window_prices)
-
-return [ma5, volatility]
-```
-
-**功能特点:**
-- `ref(var, n)` - 引用第 n 行之前的值
-- `past(var, n)` - 返回过去 n 个周期的数组
-- `window(var, size)` - 滑动窗口，包含当前值
-- `offset(var, n)` - ref 的别名，更简洁
+**语法规则:**
+- `var[-n]` - 访问第n行之前的值
+- `var[-n:]` - 过去n个历史值（不含当前）
+- `var[-n:0]` - 过去n个 + 当前值
+- `var[0:0]` - 从开始到当前的所有数据
 - 历史不足时返回 `null`
-- 零拷贝设计，高性能
+- **引用语义**：零拷贝，高性能
+
+---
+
+### ⚠️ 已废弃的时间序列函数（不推荐使用）
+
+以下函数已被下标索引语法取代，将来版本会移除：
+
+```dplang
+# ⚠️ 已废弃 - 请使用 close[-1] 代替
+prev_close = ref("close", 1)
+
+# ⚠️ 已废弃 - 请使用 close[-1] 代替
+prev_close = offset("close", 1)
+
+# ⚠️ 已废弃 - 请使用 close[-5:] 代替
+prices_past = past("close", 5)
+
+# ⚠️ 已废弃 - 请使用 close[-5:0] 代替
+window_prices = window("close", 5)
+```
+
+**迁移指南：**
+- `ref("var", n)` → `var[-n]`
+- `offset("var", n)` → `var[-n]`
+- `past("var", n)` → `var[-n:]`
+- `window("var", n)` → `var[-n:0]`
 
 ### 多包导入机制
 ```dplang
