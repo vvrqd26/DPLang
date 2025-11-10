@@ -2,7 +2,6 @@
 /target
 
 # 开发日志
-/dev_logs
 
 # 测试数据和输出
 /test_data/*.csv
