@@ -3,7 +3,7 @@
 use crate::runtime::Value;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, stdin};
+use std::io::{BufRead, stdin};
 use csv::ReaderBuilder;
 
 /// 输入管道 trait

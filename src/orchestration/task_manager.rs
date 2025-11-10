@@ -1,6 +1,7 @@
 ﻿// 任务管理器 - 管理所有任务的生命周期
 
-use crate::orchestration::{Task, TaskConfig, TaskSummary, ComputePool, DataRouter, RoutingStrategy};
+use crate::orchestration::{Task, TaskConfig, TaskSummary, ComputePool};
+#[allow(unused_imports)]
 use crate::orchestration::pipeline::{InputPipeline, OutputPipeline, FileInputPipeline, StdinInputPipeline, FileOutputPipeline, StdoutOutputPipeline, OutputMode};
 use crate::lexer::Lexer;
 use crate::parser::Parser;

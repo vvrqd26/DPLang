@@ -3,7 +3,7 @@
 use crate::runtime::Value;
 use std::collections::HashMap;
 use std::fs::{File, create_dir_all};
-use std::io::{self, Write, stdout};
+use std::io::{Write, stdout};
 use std::path::{Path, PathBuf};
 
 /// 输出管道 trait

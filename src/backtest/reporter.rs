@@ -2,8 +2,8 @@
 use std::fs;
 use std::path::Path;
 use serde_json;
-use super::engine::{BacktestResult, BasicInfo};
-use super::{PerformanceMetrics, Trade};
+use super::engine::BacktestResult;
+use super::Trade;
 use super::portfolio::Position;
 
 /// 报告生成器

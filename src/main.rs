@@ -475,6 +475,7 @@ fn run_server_mode(config_file: &str, port: u16) {
 
 // ==================== 辅助函数 ====================
 
+#[allow(dead_code)]
 fn print_backtest_summary(output: &[HashMap<String, Value>]) {
     println!("\n══════════ 回测统计 ══════════");
     println!("总交易数: {}", output.len());

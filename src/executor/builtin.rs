@@ -4,7 +4,7 @@ use super::Executor;
 use super::data_stream::CURRENT_DATA_STREAM;
 use crate::runtime::{Value, RuntimeError};
 use crate::indicators;
-use chrono::{DateTime, NaiveDateTime, NaiveDate, Duration, Utc, Local, TimeZone, Datelike, Timelike};
+use chrono::{NaiveDateTime, NaiveDate, Duration, Utc, Local, TimeZone, Datelike, Timelike};
 
 impl Executor {
     /// 执行内置函数

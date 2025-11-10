@@ -1,8 +1,9 @@
 // 回测引擎核心模块
 use std::collections::HashMap;
-use crate::executor::data_stream::DataStreamExecutor;
+use crate::executor::DataStreamExecutor;
 use crate::parser::ast::Script;
-use crate::runtime::value::Value;
+use crate::runtime::Value;
+#[allow(unused_imports)]
 use super::{
     BacktestConfig, Portfolio, TradeTracker, Trade,
     PerformanceMetrics, ReturnMetrics, RiskMetrics, PerformanceRatios, TradeStatistics,
