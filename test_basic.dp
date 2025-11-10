@@ -1,0 +1,10 @@
+-- INPUT x:number, y:number --
+-- OUTPUT sum:number, product:number --
+
+sum = x + y
+product = x * y
+
+print("x =", x, "y =", y)
+print("sum =", sum, "product =", product)
+
+return [sum, product]
