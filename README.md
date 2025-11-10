@@ -73,12 +73,39 @@ DPLang 是一个**纯粹的语言解释器**，专注于提供简洁而强大的
 - ✅ CSV 输入输出支持
 - ✅ 时间序列索引（历史数据访问）
 
-**内置函数（最小集）**
-- ✅ `sum`, `max`, `min` - 聚合函数
+**内置函数**
+
+*基础聚合*
+- ✅ `sum`, `max`, `min`, `mean` - 聚合函数
 - ✅ `length`, `concat` - 数组操作
+
+*高阶函数*
 - ✅ `map`, `filter`, `reduce` - 高阶函数
+
+*数组构造*
+- ✅ `Range(start, end, step)` - 生成数字序列
+- ✅ `Array(size, value|lambda)` - 创建固定长度数组
+
+*数组工具*
+- ✅ `first`, `last` - 获取首尾元素
+- ✅ `reverse` - 反转数组
+- ✅ `sort` - 排序
+- ✅ `unique` - 去重
+
+*安全函数*
+- ✅ `safe_div(a, b, default)` - 安全除法（避免除零）
+- ✅ `safe_get(arr, idx, default)` - 安全数组访问
+- ✅ `safe_number(val, default)` - 安全类型转换
+
+*工具函数*
 - ✅ `print` - 调试输出
 - ✅ `is_null` - Null 检测
+
+**内置变量**
+- ✅ `_index` - 当前数据行索引
+- ✅ `_total` - 总数据行数
+- ✅ `_args` - 当前输入行的所有值
+- ✅ `_args_names` - 输入字段名数组
 
 ### 4. 包管理系统
 
@@ -165,6 +192,39 @@ history = close[-4:0]          # 最近5个值
 ma5 = sum(history) / length(history)
 
 return [ma5, change]
+```
+
+### 使用新增功能
+
+```dplang
+-- INPUT prices:array --
+-- OUTPUT stats:array, cleaned:array --
+
+# 数组构造
+indices = Range(0, 9)              # [0,1,2,3,4,5,6,7,8,9]
+zeros = Array(10, 0)               # [0,0,0,0,0,0,0,0,0,0]
+squares = Array(10, i -> i * i)    # [0,1,4,9,16,25,36,49,64,81]
+
+# 数组工具
+first_price = first(prices)
+last_price = last(prices)
+avg_price = mean(prices)
+sorted_prices = sort(prices)
+unique_prices = unique(prices)
+
+# 安全函数
+change_pct = safe_div(last_price - first_price, first_price, 0.0)
+safe_value = safe_get(prices, -1, 0.0)
+
+# 内置变量
+current_index = _index          # 当前行索引
+total_rows = _total             # 总行数
+input_names = _args_names       # 输入字段名
+
+stats = [avg_price, change_pct, current_index]
+cleaned = unique_prices |> sort() |> reverse()
+
+return [stats, cleaned]
 ```
 
 ### 包系统

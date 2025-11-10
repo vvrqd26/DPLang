@@ -1,0 +1,240 @@
+package indicators
+
+# ========================================
+# DPLang 技术指标库
+# 包含常用的技术分析指标
+# ========================================
+
+# ========== 常量定义 ==========
+
+DEFAULT_MA_PERIOD = 20
+DEFAULT_SHORT_PERIOD = 12
+DEFAULT_LONG_PERIOD = 26
+DEFAULT_SIGNAL_PERIOD = 9
+DEFAULT_BOLL_STD = 2
+
+# ========== 基础工具函数 ==========
+
+# 计算简单移动平均 (SMA)
+# 自动跳过null值，返回当前时刻的均值
+def SMA(data, period):
+    # 获取历史窗口（包含当前值）
+    window = data[-(period - 1):0]
+    
+    # 过滤null值
+    valid_data = filter(window, x -> x != null)
+    
+    # 如果没有有效数据，返回null
+    if length(valid_data) == 0:
+        return null
+    
+    # 计算平均值
+    return mean(valid_data)
+
+# MA 是 SMA 的别名
+def MA(data, period):
+    return SMA(data, period)
+
+# 计算指数移动平均 (EMA)
+# EMA(t) = Price(t) * α + EMA(t-1) * (1 - α)
+# 其中 α = 2 / (period + 1)
+def EMA(data, period):
+    # 当前值
+    current = data[0]
+    
+    # 如果当前值为null，返回null
+    if current == null:
+        return null
+    
+    # 计算平滑系数
+    alpha = 2.0 / (period + 1)
+    
+    # 获取上一个EMA值（递归计算）
+    # 如果历史不足，使用SMA作为初始值
+    prev_ema = data[-1]
+    
+    # 历史数据不足时，使用SMA
+    if prev_ema == null:
+        return SMA(data, period)
+    
+    # 递归计算EMA
+    return current * alpha + prev_ema * (1 - alpha)
+
+# 计算标准差
+# 用于布林带计算
+def _std_dev(data, period):
+    # 获取窗口数据
+    window = data[-(period - 1):0]
+    
+    # 过滤null值
+    valid_data = filter(window, x -> x != null)
+    
+    # 数据不足
+    if length(valid_data) == 0:
+        return null
+    
+    # 计算平均值
+    avg = mean(valid_data)
+    
+    # 计算方差
+    squared_diffs = map(valid_data, x -> (x - avg) * (x - avg))
+    variance = mean(squared_diffs)
+    
+    # 返回标准差
+    return variance ^ 0.5
+
+# ========== 主要技术指标 ==========
+
+# 移动平均线 (Moving Average)
+# 返回指定周期的简单移动平均值
+# 
+# 参数:
+#   prices: 价格序列（通常是close）
+#   period: 周期（默认20）
+#
+# 返回: 当前时刻的MA值
+def moving_average(prices, period):
+    return SMA(prices, period)
+
+# MACD 指标 (Moving Average Convergence Divergence)
+# 返回 [DIF, DEA, MACD柱]
+#
+# 参数:
+#   prices: 价格序列（通常是close）
+#   fast: 快线周期（默认12）
+#   slow: 慢线周期（默认26）
+#   signal: 信号线周期（默认9）
+#
+# 返回: [DIF, DEA, MACD]
+def MACD(prices, fast, slow, signal):
+    # 计算快慢EMA
+    ema_fast = EMA(prices, fast)
+    ema_slow = EMA(prices, slow)
+    
+    # DIF = EMA(fast) - EMA(slow)
+    if ema_fast == null or ema_slow == null:
+        return [null, null, null]
+    
+    dif = ema_fast - ema_slow
+    
+    # DEA 需要对DIF序列计算EMA
+    # 简化版：由于没有DIF的历史数据，暂时返回null
+    # 实际使用时需要在数据脚本中自己维护DIF序列
+    dea = null
+    macd_bar = null
+    
+    return [dif, dea, macd_bar]
+
+# 布林带 (Bollinger Bands)
+# 返回 [上轨, 中轨, 下轨]
+#
+# 参数:
+#   prices: 价格序列（通常是close）
+#   period: 周期（默认20）
+#   std_multiplier: 标准差倍数（默认2）
+#
+# 返回: [upper, middle, lower]
+def BOLL(prices, period, std_multiplier):
+    # 中轨 = SMA
+    middle = SMA(prices, period)
+    
+    # 如果中轨为null，全部返回null
+    if middle == null:
+        return [null, null, null]
+    
+    # 计算标准差
+    std = _std_dev(prices, period)
+    
+    if std == null:
+        return [middle, middle, middle]
+    
+    # 上轨 = 中轨 + std_multiplier * 标准差
+    upper = middle + std_multiplier * std
+    
+    # 下轨 = 中轨 - std_multiplier * 标准差
+    lower = middle - std_multiplier * std
+    
+    return [upper, middle, lower]
+
+# RSI 相对强弱指标
+# 简化版实现
+#
+# 参数:
+#   prices: 价格序列（通常是close）
+#   period: 周期（默认14）
+#
+# 返回: RSI值 (0-100)
+def RSI(prices, period):
+    # 获取窗口数据
+    window = prices[-(period - 1):0]
+    
+    # 过滤null值
+    valid_data = filter(window, x -> x != null)
+    
+    if length(valid_data) < 2:
+        return null
+    
+    # 使用reduce计算相邻价格差，然后统计涨跌
+    # 结果格式: [prev_price, total_gain, total_loss, count]
+    init_state = [first(valid_data), 0.0, 0.0, 0]
+    
+    final_state = reduce(
+        valid_data,
+        init_state,
+        (state, price) -> [
+            price,
+            state[1] + (price > state[0] ? price - state[0] : 0.0),
+            state[2] + (price < state[0] ? state[0] - price : 0.0),
+            state[3] + 1
+        ]
+    )
+    
+    total_gains = final_state[1]
+    total_losses = final_state[2]
+    count = final_state[3]
+    
+    # 数据不足
+    if count <= 1:
+        return null
+    
+    # 计算平均涨跌
+    avg_gain = total_gains / (count - 1)
+    avg_loss = total_losses / (count - 1)
+    
+    # 避免除零
+    if avg_loss == 0:
+        return 100.0
+    
+    # RS = 平均涨幅 / 平均跌幅
+    rs = avg_gain / avg_loss
+    
+    # RSI = 100 - (100 / (1 + RS))
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    
+    return rsi
+
+# ========== 便捷函数（使用默认参数） ==========
+
+# 快速计算20日均线
+def MA20(prices):
+    return MA(prices, 20)
+
+# 快速计算5日均线
+def MA5(prices):
+    return MA(prices, 5)
+
+# 快速计算10日均线
+def MA10(prices):
+    return MA(prices, 10)
+
+# 标准MACD (12, 26, 9)
+def MACD_standard(prices):
+    return MACD(prices, 12, 26, 9)
+
+# 标准布林带 (20, 2)
+def BOLL_standard(prices):
+    return BOLL(prices, 20, 2)
+
+# 标准RSI (14)
+def RSI14(prices):
+    return RSI(prices, 14)

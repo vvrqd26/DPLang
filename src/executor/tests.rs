@@ -1063,3 +1063,459 @@ return [ts, back]
         panic!("Expected array result");
     }
 }
+
+// ==================== 新增功能测试 ====================
+
+#[test]
+fn test_range_function() {
+    let source = r#"
+-- INPUT start:number, end:number --
+-- OUTPUT result:array --
+
+result = Range(start, end)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("start".to_string(), Value::Number(1.0));
+    executor.set_input("end".to_string(), Value::Number(5.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(range) = &arr[0] {
+            assert_eq!(range.len(), 5);
+            assert_eq!(range[0], Value::Number(1.0));
+            assert_eq!(range[4], Value::Number(5.0));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_range_with_step() {
+    let source = r#"
+-- INPUT dummy:number --
+-- OUTPUT result:array --
+
+result = Range(0, 10, 2)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("dummy".to_string(), Value::Number(0.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(range) = &arr[0] {
+            assert_eq!(range.len(), 6);
+            assert_eq!(range[0], Value::Number(0.0));
+            assert_eq!(range[1], Value::Number(2.0));
+            assert_eq!(range[5], Value::Number(10.0));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_array_function() {
+    let source = r#"
+-- INPUT size:number --
+-- OUTPUT result:array --
+
+result = Array(size, 0)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("size".to_string(), Value::Number(5.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(result_arr) = &arr[0] {
+            assert_eq!(result_arr.len(), 5);
+            assert!(result_arr.iter().all(|v| matches!(v, Value::Number(0.0))));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_array_with_lambda() {
+    let source = r#"
+-- INPUT size:number --
+-- OUTPUT result:array --
+
+result = Array(size, i -> i * 2)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("size".to_string(), Value::Number(5.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(result_arr) = &arr[0] {
+            assert_eq!(result_arr.len(), 5);
+            assert_eq!(result_arr[0], Value::Number(0.0));
+            assert_eq!(result_arr[1], Value::Number(2.0));
+            assert_eq!(result_arr[4], Value::Number(8.0));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_mean_function() {
+    let source = r#"
+-- INPUT nums:array --
+-- OUTPUT result:number --
+
+result = mean(nums)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("nums".to_string(), Value::Array(vec![
+        Value::Number(1.0),
+        Value::Number(2.0),
+        Value::Number(3.0),
+        Value::Number(4.0),
+        Value::Number(5.0),
+    ]));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Number(3.0));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_first_last() {
+    let source = r#"
+-- INPUT nums:array --
+-- OUTPUT first:number, last:number --
+
+first_val = first(nums)
+last_val = last(nums)
+return [first_val, last_val]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("nums".to_string(), Value::Array(vec![
+        Value::Number(10.0),
+        Value::Number(20.0),
+        Value::Number(30.0),
+    ]));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Number(10.0));
+        assert_eq!(arr[1], Value::Number(30.0));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_sort_function() {
+    let source = r#"
+-- INPUT nums:array --
+-- OUTPUT result:array --
+
+result = sort(nums)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("nums".to_string(), Value::Array(vec![
+        Value::Number(3.0),
+        Value::Number(1.0),
+        Value::Number(4.0),
+        Value::Number(2.0),
+    ]));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(sorted) = &arr[0] {
+            assert_eq!(sorted[0], Value::Number(1.0));
+            assert_eq!(sorted[1], Value::Number(2.0));
+            assert_eq!(sorted[2], Value::Number(3.0));
+            assert_eq!(sorted[3], Value::Number(4.0));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_unique_function() {
+    let source = r#"
+-- INPUT nums:array --
+-- OUTPUT result:array --
+
+result = unique(nums)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("nums".to_string(), Value::Array(vec![
+        Value::Number(1.0),
+        Value::Number(2.0),
+        Value::Number(1.0),
+        Value::Number(3.0),
+        Value::Number(2.0),
+    ]));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(unique) = &arr[0] {
+            assert_eq!(unique.len(), 3);
+            assert_eq!(unique[0], Value::Number(1.0));
+            assert_eq!(unique[1], Value::Number(2.0));
+            assert_eq!(unique[2], Value::Number(3.0));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_reverse_function() {
+    let source = r#"
+-- INPUT nums:array --
+-- OUTPUT result:array --
+
+result = reverse(nums)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("nums".to_string(), Value::Array(vec![
+        Value::Number(1.0),
+        Value::Number(2.0),
+        Value::Number(3.0),
+    ]));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        if let Value::Array(reversed) = &arr[0] {
+            assert_eq!(reversed[0], Value::Number(3.0));
+            assert_eq!(reversed[1], Value::Number(2.0));
+            assert_eq!(reversed[2], Value::Number(1.0));
+        } else {
+            panic!("Expected array in result");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_safe_div() {
+    let source = r#"
+-- INPUT a:number, b:number --
+-- OUTPUT result:number --
+
+result = safe_div(a, b, 99)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 测试除零情况
+    let mut executor = Executor::new();
+    executor.set_input("a".to_string(), Value::Number(10.0));
+    executor.set_input("b".to_string(), Value::Number(0.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Number(99.0)); // 默认值
+    } else {
+        panic!("Expected array result");
+    }
+    
+    // 测试正常除法
+    let mut executor2 = Executor::new();
+    executor2.set_input("a".to_string(), Value::Number(10.0));
+    executor2.set_input("b".to_string(), Value::Number(2.0));
+    
+    let result2 = executor2.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result2 {
+        assert_eq!(arr[0], Value::Number(5.0));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_safe_get() {
+    let source = r#"
+-- INPUT nums:array --
+-- OUTPUT result:number --
+
+result = safe_get(nums, -1, 999)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("nums".to_string(), Value::Array(vec![
+        Value::Number(1.0),
+        Value::Number(2.0),
+        Value::Number(3.0),
+    ]));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Number(3.0)); // 最后一个元素
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_safe_number() {
+    let source = r#"
+-- INPUT val:string --
+-- OUTPUT result:number --
+
+result = safe_number(val, 0)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("val".to_string(), Value::String("not a number".to_string()));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Number(0.0)); // 默认值
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_builtin_variables() {
+    let source = r#"
+-- INPUT code:string, close:number --
+-- OUTPUT idx:number, total:number, args_count:number --
+
+idx = _index
+total = _total
+args_count = length(_args_names)
+
+return [idx, total, args_count]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 使用 DataStreamExecutor 测试
+    let input_matrix = vec![
+        vec![
+            ("code".to_string(), Value::String("SH000001".to_string())),
+            ("close".to_string(), Value::Number(100.0)),
+        ].into_iter().collect(),
+        vec![
+            ("code".to_string(), Value::String("SH000002".to_string())),
+            ("close".to_string(), Value::Number(200.0)),
+        ].into_iter().collect(),
+        vec![
+            ("code".to_string(), Value::String("SH000003".to_string())),
+            ("close".to_string(), Value::Number(300.0)),
+        ].into_iter().collect(),
+    ];
+    
+    let mut executor = DataStreamExecutor::new(script, input_matrix);
+    let results = executor.execute_all().unwrap();
+    
+    assert_eq!(results.len(), 3);
+    
+    // 检查第一行
+    assert_eq!(results[0].get("idx"), Some(&Value::Number(0.0)));
+    assert_eq!(results[0].get("total"), Some(&Value::Number(3.0)));
+    assert_eq!(results[0].get("args_count"), Some(&Value::Number(2.0)));
+    
+    // 检查第二行
+    assert_eq!(results[1].get("idx"), Some(&Value::Number(1.0)));
+    
+    // 检查第三行
+    assert_eq!(results[2].get("idx"), Some(&Value::Number(2.0)));
+}

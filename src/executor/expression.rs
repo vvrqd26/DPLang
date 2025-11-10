@@ -15,6 +15,14 @@ impl Executor {
             Expr::Null => Ok(Value::Null),
             
             Expr::Identifier(name) => {
+                // 检查是否是内置变量
+                if name.starts_with('_') {
+                    // 尝试从 DataStreamExecutor 获取内置变量
+                    if let Some(value) = self.get_builtin_variable(name) {
+                        return Ok(value);
+                    }
+                }
+                
                 self.context.get(name)
                     .cloned()
                     .ok_or_else(|| RuntimeError::undefined_variable(name))

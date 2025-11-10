@@ -196,6 +196,44 @@ impl Executor {
             }
         })
     }
+    
+    /// 获取内置变量 (_index, _total, _args, _args_names)
+    pub(crate) fn get_builtin_variable(&self, name: &str) -> Option<Value> {
+        CURRENT_DATA_STREAM.with(|cell| {
+            if let Some(executor_ptr) = *cell.borrow() {
+                unsafe {
+                    let executor = &*executor_ptr;
+                    match name {
+                        "_index" => Some(Value::Number(executor.get_current_index() as f64)),
+                        "_total" => Some(Value::Number(executor.get_total_rows() as f64)),
+                        "_args" => {
+                            // 返回当前输入行的所有值
+                            if let Some(row) = executor.get_current_row() {
+                                let values: Vec<Value> = row.values().cloned().collect();
+                                Some(Value::Array(values))
+                            } else {
+                                None
+                            }
+                        }
+                        "_args_names" => {
+                            // 返回输入字段名数组
+                            if let Some(row) = executor.get_current_row() {
+                                let names: Vec<Value> = row.keys()
+                                    .map(|k| Value::String(k.clone()))
+                                    .collect();
+                                Some(Value::Array(names))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+            } else {
+                None
+            }
+        })
+    }
 }
 
 #[cfg(test)]

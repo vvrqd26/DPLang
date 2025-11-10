@@ -167,6 +167,21 @@ impl DataStreamExecutor {
             .cloned()
     }
     
+    /// 获取当前行索引
+    pub fn get_current_index(&self) -> usize {
+        self.current_index
+    }
+    
+    /// 获取总行数
+    pub fn get_total_rows(&self) -> usize {
+        self.input_matrix.len()
+    }
+    
+    /// 获取当前输入行
+    pub fn get_current_row(&self) -> Option<&HashMap<String, Value>> {
+        self.input_matrix.get(self.current_index)
+    }
+    
     /// 获取输入矩阵的切片（零拷贝）
     /// start_offset: 开始偏移量（相对于当前行）
     /// end_offset: 结束偏移量（相对于当前行，0表示当前行）
