@@ -65,6 +65,13 @@ DPLang 不仅仅是一个数据处理语言，更是一个**高性能流式计�
 - ✅ ERROR 块错误处理
 - ✅ PRECISION 精度控制
 - ✅ 内置函数 (MA, sum, max, min, print)
+- ✅ **Null处理函数** - is_null, coalesce, nvl, if_null, nullif
+- ✅ **时间日期函数** - 完整的时间处理工具集
+  - 🕒 时间获取: now(), today()
+  - 📝 时间解析: parse_time(), format_time()
+  - ➕ 时间运算: time_add(), time_sub(), time_diff()
+  - 📅 组件提取: year(), month(), day(), hour(), minute(), second(), weekday()
+  - 🕢 时间戳: timestamp(), from_timestamp()
 - ✅ **数据流执行器 (DataStreamExecutor)** - 行级流式处理
 - ✅ **时间序列函数** - ref(), past(), offset(), window() 完整支持
 - ✅ **技术指标库（优化版）** - SMA, EMA, MACD, RSI, BOLL, ATR, KDJ 等常用指标
@@ -93,10 +100,24 @@ DPLang 不仅仅是一个数据处理语言，更是一个**高性能流式计�
   - ✅ 新增 `Value::to_number_or_default()` 和 `Value::is_null()` 辅助方法
   - ✅ 所有内置指标（SMA、EMA、RSI等）正确跳过null值
   - ✅ 内置函数（sum、avg等）正确处理null值
+- ✅ **Null处理函数库** - 新增专门处理null的内置函数
+  - ✅ is_null(value) - 检查值是否为null
+  - ✅ coalesce(v1, v2, ...) - 返回第一个非null值
+  - ✅ nvl(value, default) / if_null(value, default) - null时返回默认值
+  - ✅ nullif(v1, v2) - 相等则返回null
+- ✅ **时间日期函数库** - 基于chrono，完整的时间处理能力
+  - ✅ now(), today() - 获取当前时间/日期
+  - ✅ parse_time(str, format?) - 智能解析多种时间格式
+  - ✅ format_time(str, format) - 格式化时间输出
+  - ✅ time_add/time_sub(time, amount, unit) - 时间运算
+  - ✅ time_diff(t1, t2, unit?) - 计算时间差
+  - ✅ year/month/day/hour/minute/second/weekday - 提取时间组件
+  - ✅ timestamp/from_timestamp - Unix时间戳转换
 - 📊 **依赖管理**
   - 新增: csv = "1.3" (CSV解析优化)
   - 新增: thiserror = "1.0" (错误处理)
   - 新增: criterion = "0.5" (性能基准测试)
+  - 新增: chrono = "0.4" (时间日期处理)
 
 ## 🚀 快速开始
 
@@ -180,12 +201,14 @@ return [adjusted]
   - 🎯 新增: MACDCalculator, KDJCalculator 增量计算器测试
   - 🎯 新增: Null值处理测试（SMA/RSI对null的正确处理）
 - ✅ PackageLoader: 7个测试 (包加载、缓存、批量加载测试)
-- ✅ Executor: 23个测试 (包含数据流、包导入、时间序列函数、技术指标、print函数测试)
+- ✅ Executor: 29个测试 (包含数据流、包导入、时间序列函数、技术指标、print函数、**Null处理函数**、**时间日期函数**测试)
+  - 🎯 新增: Null处理函数测试 (is_null, coalesce, nvl, nullif)
+  - 🎯 新增: 时间日期函数测试 (解析、提取、运算、时间戳)
 - ✅ API: 3个测试 (JSON/CSV格式支持)
 - ✅ Streaming: 1个测试 (CSV分组写入)
 - ✅ Orchestration: 14个测试 (编排系统相关)
 
-**总计: 86个测试全部通过 ✅**
+**总计: 92个测试全部通过 ✅**
 
 ## 🎯 核心特性演示
 

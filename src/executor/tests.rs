@@ -817,3 +817,249 @@ return [signal, strength]
     assert_eq!(output3[0].get("signal"), Some(&Value::String("观望".to_string())));
     assert_eq!(output3[0].get("strength"), Some(&Value::String("弱势".to_string())));
 }
+
+// ==================== Null 处理函数测试 ====================
+
+#[test]
+fn test_null_handling_functions() {
+    let source = r#"
+-- INPUT value:number --
+-- OUTPUT is_null_result:bool, coalesce_result:number, nvl_result:number --
+
+is_null_result = is_null(value)
+coalesce_result = coalesce(value, 100, 200)
+nvl_result = nvl(value, 50)
+
+return [is_null_result, coalesce_result, nvl_result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 测试 null 值
+    let mut executor1 = Executor::new();
+    executor1.set_input("value".to_string(), Value::Null);
+    let result1 = executor1.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result1 {
+        assert_eq!(arr[0], Value::Bool(true));  // is_null(null) = true
+        assert_eq!(arr[1], Value::Number(100.0));  // coalesce(null, 100, 200) = 100
+        assert_eq!(arr[2], Value::Number(50.0));  // nvl(null, 50) = 50
+    } else {
+        panic!("Expected array result");
+    }
+    
+    // 测试非 null 值
+    let mut executor2 = Executor::new();
+    executor2.set_input("value".to_string(), Value::Number(42.0));
+    let result2 = executor2.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result2 {
+        assert_eq!(arr[0], Value::Bool(false));  // is_null(42) = false
+        assert_eq!(arr[1], Value::Number(42.0));  // coalesce(42, 100, 200) = 42
+        assert_eq!(arr[2], Value::Number(42.0));  // nvl(42, 50) = 42
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_nullif_function() {
+    let source = r#"
+-- INPUT a:number, b:number --
+-- OUTPUT result:number --
+
+result = nullif(a, b)
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 测试相等值
+    let mut executor1 = Executor::new();
+    executor1.set_input("a".to_string(), Value::Number(10.0));
+    executor1.set_input("b".to_string(), Value::Number(10.0));
+    let result1 = executor1.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result1 {
+        assert_eq!(arr[0], Value::Null);  // nullif(10, 10) = null
+    } else {
+        panic!("Expected array result");
+    }
+    
+    // 测试不相等值
+    let mut executor2 = Executor::new();
+    executor2.set_input("a".to_string(), Value::Number(10.0));
+    executor2.set_input("b".to_string(), Value::Number(20.0));
+    let result2 = executor2.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result2 {
+        assert_eq!(arr[0], Value::Number(10.0));  // nullif(10, 20) = 10
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+// ==================== 时间日期函数测试 ====================
+
+#[test]
+fn test_time_parsing() {
+    let source = r#"
+-- INPUT time_str:string --
+-- OUTPUT parsed:string --
+
+parsed = parse_time(time_str)
+return [parsed]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 测试常见日期格式
+    let test_cases = vec![
+        ("2024-11-10 15:30:00", "2024-11-10 15:30:00"),
+        ("2024-11-10", "2024-11-10"),
+        ("2024/11/10", "2024-11-10"),
+    ];
+    
+    for (input, expected_prefix) in test_cases {
+        let mut executor = Executor::new();
+        executor.set_input("time_str".to_string(), Value::String(input.to_string()));
+        let result = executor.execute_data_script(&script).unwrap();
+        
+        if let Some(Value::Array(arr)) = result {
+            if let Value::String(parsed) = &arr[0] {
+                assert!(parsed.starts_with(expected_prefix), "Expected {} to start with {}", parsed, expected_prefix);
+            } else {
+                panic!("Expected string result");
+            }
+        } else {
+            panic!("Expected array result");
+        }
+    }
+}
+
+#[test]
+fn test_time_extraction() {
+    let source = r#"
+-- INPUT time_str:string --
+-- OUTPUT year:number, month:number, day:number, hour:number, minute:number, second:number, weekday:number --
+
+year_val = year(time_str)
+month_val = month(time_str)
+day_val = day(time_str)
+hour_val = hour(time_str)
+minute_val = minute(time_str)
+second_val = second(time_str)
+weekday_val = weekday(time_str)
+
+return [year_val, month_val, day_val, hour_val, minute_val, second_val, weekday_val]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("time_str".to_string(), Value::String("2024-11-10 15:30:45".to_string()));
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Number(2024.0));  // year
+        assert_eq!(arr[1], Value::Number(11.0));    // month
+        assert_eq!(arr[2], Value::Number(10.0));    // day
+        assert_eq!(arr[3], Value::Number(15.0));    // hour
+        assert_eq!(arr[4], Value::Number(30.0));    // minute
+        assert_eq!(arr[5], Value::Number(45.0));    // second
+        // weekday: 2024-11-10 is Sunday (6)
+        assert_eq!(arr[6], Value::Number(6.0));     // weekday
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_time_arithmetic() {
+    let source = r#"
+-- INPUT time_str:string --
+-- OUTPUT added:string, subtracted:string, diff_days:number --
+
+added = time_add(time_str, 5, "days")
+subtracted = time_sub(time_str, 2, "hours")
+diff_days = time_diff(added, time_str, "days")
+
+return [added, subtracted, diff_days]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("time_str".to_string(), Value::String("2024-11-10 12:00:00".to_string()));
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        // 加 5 天
+        if let Value::String(added) = &arr[0] {
+            assert!(added.starts_with("2024-11-15"));
+        } else {
+            panic!("Expected string for added");
+        }
+        
+        // 减 2 小时
+        if let Value::String(subtracted) = &arr[1] {
+            assert!(subtracted.starts_with("2024-11-10 10:00"));
+        } else {
+            panic!("Expected string for subtracted");
+        }
+        
+        // 天数差值
+        assert_eq!(arr[2], Value::Number(5.0));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_timestamp_conversion() {
+    let source = r#"
+-- INPUT time_str:string --
+-- OUTPUT ts:number, back:string --
+
+ts = timestamp(time_str)
+back = from_timestamp(ts)
+
+return [ts, back]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("time_str".to_string(), Value::String("2024-11-10 12:00:00".to_string()));
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        // 检查时间戳是一个合理的数值
+        if let Value::Number(ts) = arr[0] {
+            assert!(ts > 1700000000.0);  // 2023年以后的时间戳
+        } else {
+            panic!("Expected number for timestamp");
+        }
+        
+        // 检查反向转换
+        if let Value::String(back) = &arr[1] {
+            assert!(back.starts_with("2024-11-10"));
+        } else {
+            panic!("Expected string for back");
+        }
+    } else {
+        panic!("Expected array result");
+    }
+}
