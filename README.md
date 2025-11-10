@@ -1,347 +1,208 @@
-# DPLang - 简单、高效、AI友好的流式数据处理语言解释器
+# DPLang - 简单、高效、AI友好的数据处理语言
 
 > v0.4.0 - 回归本质，专注语言核心
 
 ## 🎯 项目定位
 
-DPLang 是一个**纯粹的语言解释器**，专注于：
+DPLang 是一个**纯粹的语言解释器**，专注于提供简洁而强大的数据处理能力：
 
-✅ **简单** - 极简语法，支持中文，AI友好  
-⚡ **高效** - 流式计算架构，20,000+行/秒处理速度  
-🔌 **开放** - 扩展机制，支持自定义内置函数  
-📦 **易嵌入** - 依赖少，适合集成于各类项目
+✅ **简单易学** - 极简语法，支持中文标识符，AI 友好  
+⚡ **高效执行** - 流式计算架构，零拷贝设计  
+🔌 **灵活扩展** - 开放的语言核心，易于嵌入和扩展  
+📦 **轻量依赖** - 最小化依赖，适合集成到各类 Rust 项目
 
-**与 v0.3.0 的区别**：
-- ✖️ 移除了上层应用（回测、编排、监控）
-- ✖️ 移除了业务相关内置函数（技术指标、时间函数）
-- ✔️ 保留了语言核心特性（高阶函数、Lambda、包机制）
-- ✔️ 新增了扩展机制（可注册自定义函数）
+**设计哲学**：
+- 语言本身只提供核心计算能力（表达式、函数、流程控制）
+- 业务逻辑通过扩展机制实现，保持核心简洁
+- 专注做好「数据处理语言」这一件事
 
-## ✨ 已实现的核心功能
+## ✨ 核心特性
 
-### 1. 词法分析器 (Lexer)
-- ✅ 支持中文标识符
+### 1. 完整的语言解析链
+
+**词法分析器 (Lexer)**
+- ✅ 中文标识符支持
 - ✅ 缩进敏感语法 (Indent/Dedent)
-- ✅ 特殊声明识别 (`-- INPUT --`, `-- OUTPUT --`)
 - ✅ 完整的运算符支持 (`+`, `-`, `*`, `/`, `%`, `^`, `>`, `<`, `==`, `!=`, `and`, `or`, `not`)
-- ✅ 管道运算符 `|>`
-- ✅ Lambda 箭头 `->`
+- ✅ 管道运算符 `|>` 和 Lambda 箭头 `->`
 
-### 2. 语法分析器 (Parser)
-- ✅ 数据处理脚本解析
-- ✅ 包脚本解析
-- ✅ **IMPORT 声明解析** - 导入多个包
-- ✅ 表达式解析 (递归下降,正确的优先级)
-- ✅ 语句解析 (赋值、条件、返回)
-- ✅ Lambda 表达式解析
-- ✅ 数组字面量和解构赋值
-- ✅ 三元表达式 `condition ? then : else`
-- ✅ 管道表达式 `value |> func1 |> func2`
-- 🔧 **索引和切片语法** (正在实现)
-  - ✅ AST节点: `Expr::Index` 和 `Expr::Slice`
-  - ✅ Parser解析逻辑: 支持 `var[index]` 和 `var[start:end]`
-  - ⏳ Executor执行逻辑: 尚未实现
+**语法分析器 (Parser)**
+- ✅ 递归下降解析器，正确的运算符优先级
+- ✅ 表达式解析：算术、逻辑、三元、管道
+- ✅ 语句解析：赋值、条件、返回
+- ✅ Lambda 表达式和数组字面量
+- ✅ 包导入机制 (`-- IMPORT --`)
 
-### 3. 语义分析器 (Semantic Analyzer)
-- ✅ **未定义变量检测** - 检查变量是否在使用前定义
-- ✅ **变量遮蔽检测** - 检测同一作用域内的重复定义
-- ✅ **未使用变量检测** - 检查定义但未使用的变量（警告）
-- ✅ **作用域管理** - 正确处理嵌套作用域（if块、Lambda、函数）
-- ✅ **表达式分析** - 递归分析所有表达式中的变量使用
+**语义分析器 (Semantic Analyzer)**
+- ✅ 未定义变量检测
+- ✅ 变量遮蔽检测
+- ✅ 未使用变量警告
+- ✅ 作用域管理（if 块、Lambda、函数）
 
-### 3. 运行时 (Runtime)
-- ✅ Value 类型系统 (Number, Decimal, String, Bool, Null, Array, Lambda)
-- ✅ 向量运算 (数组逐元素运算)
-- ✅ 广播运算 (数组与标量)
-- ✅ 完整的算术和逻辑运算
-- ✅ 类型转换和强制类型转换
-- ✅ Decimal 精度处理
+### 2. 强大的运行时系统
 
-### 4. 执行器 (Executor)
-- ✅ 数据脚本执行
-- ✅ 包脚本执行
+**类型系统 (Value)**
+- ✅ Number - 浮点数
+- ✅ Decimal - 高精度小数
+- ✅ String - 字符串
+- ✅ Bool - 布尔值
+- ✅ Null - 空值
+- ✅ Array - 数组（支持向量运算）
+- ✅ Lambda - 函数值
+
+**向量运算**
+- ✅ 数组逐元素运算：`[1, 2, 3] * 2 => [2, 4, 6]`
+- ✅ 广播机制：标量与数组自动扩展
+- ✅ 完整的算术和逻辑运算支持
+
+### 3. 流式执行引擎
+
+**核心执行器 (Executor)**
 - ✅ 表达式求值
-- ✅ 条件语句执行
-- ✅ 变量管理
+- ✅ 变量管理和作用域
+- ✅ 条件语句 (if/else)
 - ✅ Lambda 表达式执行
-- ✅ 高阶函数 (map, filter, reduce)
-- ✅ 用户定义函数调用
-- ✅ 成员访问 (包.成员)
-- ✅ ERROR 块错误处理
-- ✅ PRECISION 精度控制
-- ✅ 内置函数 (MA, sum, max, min, print)
-- ✅ **Null处理函数** - is_null, coalesce, nvl, if_null, nullif
-- ✅ **时间日期函数** - 完整的时间处理工具集
-  - 🕒 时间获取: now(), today()
-  - 📝 时间解析: parse_time(), format_time()
-  - ➕ 时间运算: time_add(), time_sub(), time_diff()
-  - 📅 组件提取: year(), month(), day(), hour(), minute(), second(), weekday()
-  - 🕢 时间戳: timestamp(), from_timestamp()
-- ✅ **数据流执行器 (DataStreamExecutor)** - 行级流式处理
-- ✅ **时间序列函数** - ref(), past(), offset(), window() 完整支持
-- ✅ **技术指标库（优化版）** - SMA, EMA, MACD, RSI, BOLL, ATR, KDJ 等常用指标
-  - 🎯 **增量计算器模式** - MACD和KDJ采用状态化流式计算，准确性100%
-  - 🚀 **零拷贝设计** - 避免重复历史数据遍历，性能提升10-100倍
-- ✅ **包加载和执行** - 包脚本只执行一次，在数据脚本前加载
-- ✅ **包变量和函数导入** - 支持通过包名访问包内成员 (Value::Function 类型)
-- ✅ **文件系统包加载器 (PackageLoader)** - 从 .dp 文件自动加载包，支持搜索路径和缓存
+- ✅ 用户自定义函数
+- ✅ 包导入和成员访问
+- ✅ 错误处理机制 (ERROR 块)
+- ✅ 精度控制 (PRECISION)
 
-### 5. 流式计算引擎
-- ⚡ **高性能流式处理** - 23,000+ 行/秒的处理速度（release 模式）
-- 🌊 **行级流式架构** - DataStreamExecutor 实现单行内存模式，支持无限数据流
-- 🚀 **增量计算器** - EMAState、MACDCalculator、KDJCalculator 状态化流式计算
-- 🎯 **零拷贝设计** - 时间序列引用语义，避免历史数据复制，性能提升10-100倍
-- 📊 **CSV 优化** - 集成高性能 csv crate，5-10x 解析性能提升
-- 🔧 **技术指标库** - 内置 SMA、EMA、MACD、RSI、BOLL、ATR、KDJ 等常用指标
-- 🧠 **智能缓存** - 包加载缓存机制，避免重复解析
+**流式处理 (DataStreamExecutor)**
+- ✅ 逐行流式处理
+- ✅ 零拷贝设计
+- ✅ CSV 输入输出支持
+- ✅ 时间序列索引（历史数据访问）
 
-### 6. 性能优化 (2024-11-10 更新)
-- ✅ **引入csv crate** - 使用高性能CSV解析库，预期5-10x性能提升
-- ✅ **修复MACD指标** - 完整实现Signal线和Histogram计算（原为简化版本）
-- ✅ **修复KDJ指标** - 实现K、D值平滑计算（原为简化版本）
-- ✅ **增量计算器架构** - EMAState, MACDCalculator, KDJCalculator支持流式增量更新
-- ✅ **Null语义明确化** - 系统层面null语义明确，指标函数正确处理null值
-  - ✅ `Value::to_number()` 对null返回错误，保持语义明确性
-  - ✅ 新增 `Value::to_number_or_default()` 和 `Value::is_null()` 辅助方法
-  - ✅ 所有内置指标（SMA、EMA、RSI等）正确跳过null值
-  - ✅ 内置函数（sum、avg等）正确处理null值
-- ✅ **Null处理函数库** - 新增专门处理null的内置函数
-  - ✅ is_null(value) - 检查值是否为null
-  - ✅ coalesce(v1, v2, ...) - 返回第一个非null值
-  - ✅ nvl(value, default) / if_null(value, default) - null时返回默认值
-  - ✅ nullif(v1, v2) - 相等则返回null
-- ✅ **时间日期函数库** - 基于chrono，完整的时间处理能力
-  - ✅ now(), today() - 获取当前时间/日期
-  - ✅ parse_time(str, format?) - 智能解析多种时间格式
-  - ✅ format_time(str, format) - 格式化时间输出
-  - ✅ time_add/time_sub(time, amount, unit) - 时间运算
-  - ✅ time_diff(t1, t2, unit?) - 计算时间差
-  - ✅ year/month/day/hour/minute/second/weekday - 提取时间组件
-  - ✅ timestamp/from_timestamp - Unix时间戳转换
-- 📊 **依赖管理**
-  - 新增: csv = "1.3" (CSV解析优化)
-  - 新增: thiserror = "1.0" (错误处理)
-  - 新增: criterion = "0.5" (性能基准测试)
-  - 新增: chrono = "0.4" (时间日期处理)
+**内置函数（最小集）**
+- ✅ `sum`, `max`, `min` - 聚合函数
+- ✅ `length`, `concat` - 数组操作
+- ✅ `map`, `filter`, `reduce` - 高阶函数
+- ✅ `print` - 调试输出
+- ✅ `is_null` - Null 检测
+
+### 4. 包管理系统
+
+**PackageLoader**
+- ✅ 从 `.dp` 文件自动加载包
+- ✅ 多路径搜索：`packages/`, 当前目录, `stdlib/`
+- ✅ 包缓存机制，避免重复加载
+- ✅ 包变量和函数导出
 
 ## 🚀 快速开始
 
-### 场景化命令行
-
-DPLang v0.3.0 提供清晰的场景化命令，让使用更直观：
+### 安装
 
 ```bash
-# 📊 单次指标计算
-dplang calc examples/scripts/simple_indicators.dp data/stock.csv
-
-# 📈 策略回测
-dplang backtest examples/scripts/ma_crossover_strategy.dp data/history.csv --output results/
-
-# 🔍 策略选股
-dplang screen examples/scripts/momentum_screen.dp data/all_stocks.csv --output selected.csv
-
-# 📡 实时监控
-dplang monitor examples/scripts/realtime_alerts.dp --window 1000
-
-# 🔧 任务编排服务器
-dplang server tasks.toml --port 8888
+# 从源码构建
+cargo build --release
 ```
 
-**详细使用指南：** 请阅读 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md)
+### 基本使用
 
-### 运行测试
+**1. 编写一个简单的脚本** (`hello.dp`)
+
+```dplang
+-- INPUT name:string, age:number --
+-- OUTPUT greeting:string, is_adult:bool --
+
+greeting = "Hello, " + name + "!"
+is_adult = age >= 18
+
+return [greeting, is_adult]
+```
+
+**2. 准备数据文件** (`data.csv`)
+
+```csv
+name,age
+Alice,25
+Bob,16
+Charlie,30
+```
+
+**3. 运行脚本**
 
 ```bash
+# 使用 CSV 文件作为输入
+dplang run hello.dp data.csv
+
+# 或交互式输入 (JSON 格式)
+dplang run hello.dp
+> {"name": "Alice", "age": 25}
+> {"name": "Bob", "age": 16}
+>
+```
+
+**输出结果**:
+
+```csv
+greeting,is_adult
+Hello, Alice!,true
+Hello, Bob!,false
+Hello, Charlie!,true
+```
+
+### 作为库使用
+
+在你的 Rust 项目中集成 DPLang：
+
+```toml
+# Cargo.toml
+[dependencies]
+dplang = { path = "path/to/dplang" }
+```
+
+```rust
+use dplang::DPLangInterpreter;
+use dplang::runtime::Value;
+use std::collections::HashMap;
+
+fn main() {
+    let script = r#"
+-- INPUT x:number, y:number --
+-- OUTPUT sum:number, product:number --
+
+sum = x + y
+product = x * y
+
+return [sum, product]
+    "#;
+    
+    let interpreter = DPLangInterpreter::new(script);
+    
+    let mut input = HashMap::new();
+    input.insert("x".to_string(), Value::Number(10.0));
+    input.insert("y".to_string(), Value::Number(5.0));
+    
+    match interpreter.execute(vec![input]) {
+        Ok(output) => println!("Result: {:?}", output),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+}
+```
+
+## 📊 测试
+
+项目包含全面的单元测试：
+
+```bash
+# 运行所有测试
 cargo test
+
+# 运行特定模块测试
+cargo test lexer
+cargo test parser
+cargo test executor
 ```
 
-### 查看示例
-
-**快速入门**：请阅读 [QUICKSTART.md](QUICKSTART.md) 获取详细的入门指南
-
-**场景化使用**：请阅读 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md) 了解不同场景的使用方法
-
-**示例代码**：
-- `examples/scripts/simple_indicators.dp` - 技术指标计算
-- `examples/scripts/ma_crossover_strategy.dp` - 双均线回测策略
-- `examples/scripts/momentum_screen.dp` - 动量选股策略
-- `examples/scripts/realtime_alerts.dp` - 实时异常监控
-- `examples/demo.rs` - Rust 集成示例
-
-## 🔥 性能指标
-
-### 流式计算性能
-
-```
-数据集: 5,000行股票数据
-计算任务: MA(5)、MA(10)、MACD、RSI、BOLL 等多个指标
-执行时间: ~0.22秒 (release 模式)
-处理速度: ~23,000 行/秒
-内存占用: 低（行级流式处理）
-```
-
-### 关键优化技术
-
-✅ **增量计算** - 指标状态化，避免重复计算  
-✅ **引用语义** - 时间序列访问零拷贝  
-✅ **列式存储** - 数据按列组织，缓存友好  
-✅ **流式架构** - 单行内存模式，支持无限数据  
-✅ **纯函数设计** - 天然并发安全，可多线程执行
-
-## 📝 示例代码
-
-### 示例 1: 计算涨跌幅
-
-```dplang
--- INPUT code:string, open:number, close:number --
--- OUTPUT code:string, 涨幅:number, 信号:string --
-
-涨幅 = (close - open) / open * 100
-信号 = 涨幅 > 5 ? "强势" : "弱势"
-
-return [code, 涨幅, 信号]
-```
-
-**输入数据:**
-```
-SH600000 | open: 10, close: 11
-```
-
-**输出结果:**
-```
-SH600000 | 涨幅: 10.00% | 信号: 强势
-```
-
-### 示例 2: 向量运算
-
-```dplang
--- INPUT prices:array --
--- OUTPUT adjusted:array --
-
-adjusted = prices * 1.1  # 所有价格上调10%
-return [adjusted]
-```
-
-## 📊 测试覆盖
-
-- ✅ Lexer: 4个测试
-- ✅ Parser: 3个测试
-- ✅ Runtime: 4个测试
-- ✅ Semantic Analyzer: 5个测试 (未定义变量、遮蔽检测、未使用变量)
-- ✅ Indicators: 9个测试 (SMA, EMA, RSI, BOLL, ATR 技术指标测试 + Null处理测试)
-  - 🎯 新增: MACDCalculator, KDJCalculator 增量计算器测试
-  - 🎯 新增: Null值处理测试（SMA/RSI对null的正确处理）
-- ✅ PackageLoader: 7个测试 (包加载、缓存、批量加载测试)
-- ✅ Executor: 29个测试 (包含数据流、包导入、时间序列函数、技术指标、print函数、**Null处理函数**、**时间日期函数**测试)
-  - 🎯 新增: Null处理函数测试 (is_null, coalesce, nvl, nullif)
-  - 🎯 新增: 时间日期函数测试 (解析、提取、运算、时间戳)
-- ✅ API: 3个测试 (JSON/CSV格式支持)
-- ✅ Streaming: 1个测试 (CSV分组写入)
-- ✅ Orchestration: 14个测试 (编排系统相关)
-
-**总计: 92个测试全部通过 ✅**
-
-## 🎯 核心特性演示
-
-### 支持中文变量和函数名
-```dplang
-涨幅 = (close - open) / open * 100
-信号 = 涨幅 > 10 ? "强" : "弱"
-```
-
-### 向量运算
-```dplang
-prices = [100, 200, 300]
-adjusted = prices * 1.1        # [110, 220, 330]
-high_prices = prices > 150     # [false, true, true]
-```
-
-### 三元表达式
-```dplang
-result = x > 10 ? "big" : "small"
-```
-
-### 条件语句
-```dplang
-if ma5 > ma10:
-    signal = "金叉"
-else:
-    signal = "死叉"
-```
-
-### Lambda 表达式和高阶函数
-```dplang
-# map - 对数组每个元素应用函数
-prices = [100, 200, 300]
-doubled = map(prices, x -> x * 2)  # [200, 400, 600]
-
-# filter - 过滤数组元素
-filtered = filter(prices, x -> x > 150)  # [200, 300]
-```
-
-### 时间序列访问（下标索引）
-```dplang
--- INPUT close:number --
--- OUTPUT ma2:number, 涨幅:number, 是否新高:bool --
-
-# 单值访问（负数下标表示历史）
-昨收 = close[-1]           # 上一行的 close
-前5天收盘 = close[-5]      # 第5行之前的 close
-
-# 切片访问（返回数组，引用语义，零拷贝）
-历史5天 = close[-5:0]      # 最近5个 + 当前，共61个
-过去5天 = close[-5:]       # 最近5个历史值（不含当前）
-
-# 计算指标
-涨幅 = (昨收 == null) ? 0 : (close - 昨收) / 昨收 * 100
-ma2 = (昨收 == null) ? close : (close + 昨收) / 2
-是否新高 = close >= max(...历史5天)
-
-return [ma2, 涨幅, 是否新高]
-```
-
-**语法规则:**
-- `var[-n]` - 访问第n行之前的值
-- `var[-n:]` - 过去n个历史值（不含当前）
-- `var[-n:0]` - 过去n个 + 当前值
-- `var[0:0]` - 从开始到当前的所有数据
-- 历史不足时返回 `null`
-- **引用语义**：零拷贝，高性能
-
----
-
-
-### 多包导入机制
-```dplang
--- IMPORT math, utils --
--- INPUT x:number --
--- OUTPUT result:number --
-
-# 使用导入的包中的变量
-result = math.PI * x
-return [result]
-```
-
-**功能:**
-- 支持导入多个包
-- 包脚本在数据脚本前执行一次
-- 通过 `包名.成员` 访问包内变量
-- 零拷贝包数据共享
-
-**文件系统包加载:**
-- 自动从 `.dp` 文件加载包
-- 支持多个搜索路径：`packages/`、当前目录、`stdlib/`
-- 包缓存机制，避免重复加载
-
-**目录结构:**
-```
-project/
-├── packages/        # 本地包目录
-│   ├── math.dp     # 数学库包
-│   └── utils.dp    # 工具库包
-├── stdlib/          # 标准库（内置包）
-└── main.dp          # 主脚本
-```
+**测试覆盖**：
+- ✅ Lexer: 词法分析
+- ✅ Parser: 语法分析
+- ✅ Semantic: 语义分析
+- ✅ Runtime: 类型系统和运算
+- ✅ Executor: 执行器逻辑
+- ✅ API: 公共接口
+- ✅ PackageLoader: 包加载
 
 ## 🏗️ 架构设计
 
@@ -376,12 +237,6 @@ DPLang/
 │   ├── indicator_benchmarks.rs
 │   └── optimization_benchmarks.rs
 ├── tests/                   # 集成测试 (预留)
-├── examples/                # 示例和配置
-│   ├── scripts/             # DPLang 示例脚本
-│   │   └── indicators.dp    # 指标计算示例
-│   └── configs/             # 任务配置示例
-│       ├── tasks.toml
-│       └── stock_tasks.toml
 ├── packages/                # DPLang 标准包库
 │   └── math.dp              # 数学库包
 ├── scripts/                 # 测试和工具脚本
@@ -418,12 +273,7 @@ DPLang/
 - **output/**: 运行输出目录 (由 Git 忽略)
 
 
-## ⚠️ MVP 限制
 
-本版本已实现核心功能，以下是可选的增强功能:
-
-- ⚠️ 类型推导和高级类型检查
-- ⚠️ 性能优化 (并行执行、JIT编译)
 
 ## 🔜 下一步计划
 
@@ -437,32 +287,7 @@ DPLang/
    - ✅ 创建完整的场景化使用指南 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md)
    - ✅ 提供四大场景示例脚本（指标计算、回测、选股、监控）
 
-### 近期改进 (v0.2.0) ✅ 已完成
-1. **错误信息增强** ✅ 基础完成
-   - ✅ RuntimeError结构新增 line/column/context 字段
-   - ✅ 显示错误发生的行号和列号
-   - ⏳ 提供变量值和表达式上下文（下一步）
-   - ⏳ 给出修复建议和相似变量提示（下一步）
 
-2. **调试模式** ✅ 已实现
-   - ✅ `dplang run --debug script.dp` 启用调试输出
-   - ✅ 显示脚本、输入行数、字段信息
-   - ⏳ 显示每行的变量值变化（下一步）
-   - ⏳ 支持性能分析模式（下一步）
-
-3. **内存限制配置** ✅ 基础完成
-   - ✅ 新增 ExecutorConfig 结构体
-   - ✅ 定义 max_window_size 和 max_output_rows
-   - ⏳ 集成到执行器（下一步）
-   - ⏳ 超限时提前报错（下一步）
-
-### 正在进行 (2024-11-09)
-4. **流式计算引擎测试与优化** ✅ 已完成第一阶段
-   - ✅ 修复MACD/KDJ指标计算准确性
-   - ✅ 引入csv crate优化CSV解析
-   - ✅ 建立性能基准测试框架 (benches/indicator_benchmarks.rs)
-   - ✅ 添加增量计算器：EMAState, MACDCalculator, KDJCalculator
-   - 目标: >100,000行/秒 (当前~23,000行/秒)
 
 ### 后续计划
 2. **性能优化** - 并行执行、向量化运算
@@ -493,7 +318,7 @@ DPLang/
 **使用条款：**
 - ✅ 可自由使用、修改、分发，但需注明原作者
 - ✅ 小规模商业应用和学习使用不受限制
-- ⚠️ 大规模商业应用需联系作者获得支持和授权
+
 
 详见 [LICENSE](LICENSE) 文件。
 
