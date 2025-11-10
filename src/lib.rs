@@ -10,6 +10,7 @@ pub mod indicators;
 pub mod api;
 pub mod streaming;
 pub mod orchestration; // 任务编排系统
+pub mod backtest; // 回测系统
 // pub mod builtin;
 // pub mod interpreter;
 

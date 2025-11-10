@@ -1,0 +1,19 @@
+# RSI超买超卖策略 - 专业回测示例
+# 策略说明：RSI < 30 买入，RSI > 70 卖出
+
+-- INPUT date:string, close:number, volume:number --
+-- OUTPUT date:string, close:number, rsi:number, signal:string --
+
+# 计算RSI指标
+rsi = RSI(close, 14)
+
+# 获取前一日RSI
+prev_rsi = rsi[-1]
+
+# 生成交易信号
+# RSI从下方突破30视为买入信号
+# RSI从上方跌破70视为卖出信号
+signal = (prev_rsi != null and prev_rsi < 30 and rsi >= 30) ? "买入" :
+         (prev_rsi != null and prev_rsi > 70 and rsi <= 70) ? "卖出" : "持有"
+
+return [date, close, rsi, signal]

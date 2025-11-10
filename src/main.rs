@@ -8,6 +8,7 @@ use dplang::{
     api::{parse_csv, format_output_csv},
     streaming::{CSVStreamWriter, CSVWriterConfig, CSVMode},
     orchestration::server::OrchestrationServer,
+    backtest::{BacktestConfig, BacktestEngine, Reporter},
 };
 use std::collections::HashMap;
 use std::env;
@@ -246,19 +247,21 @@ fn run_calc_mode(script_path: &str, csv_path: &str) {
 }
 
 /// 策略回测模式
+/// 策略回测模式
 fn run_backtest_mode(script_path: &str, csv_path: &str, output_dir: Option<&str>) {
     println!("📈 策略回测模式");
-    println!("策略: {}", script_path);
-    println!("历史数据: {}", csv_path);
+    println!(" 策略: {}", script_path);
+    println!(" 历史数据: {}", csv_path);
     
+    // 创建回测配置
     let output = output_dir.unwrap_or("./backtest_results");
-    println!("输出目录: {}\n", output);
+    let config = BacktestConfig::new()
+        .with_output_dir(output.to_string());
     
-    // 创建输出目录
-    if let Err(e) = fs::create_dir_all(output) {
-        eprintln!("错误: 无法创建输出目录: {}", e);
-        return;
-    }
+    println!(" 初始资金: {:.2}", config.initial_capital);
+    println!(" 手续费率: {:.2}%", config.commission_rate * 100.0);
+    println!(" 滑点率: {:.2}%", config.slippage_rate * 100.0);
+    println!(" 输出目录: {}\n", output);
     
     // 读取脚本
     let source = match fs::read_to_string(script_path) {
@@ -287,7 +290,7 @@ fn run_backtest_mode(script_path: &str, csv_path: &str, output_dir: Option<&str>
         }
     };
     
-    println!("✅ 加载 {} 条历史数据\n", input_matrix.len());
+    println!("✅ 加载 {} 条历史数据", input_matrix.len());
     
     // 解析脚本
     let mut lexer = Lexer::new(&source);
@@ -314,27 +317,38 @@ fn run_backtest_mode(script_path: &str, csv_path: &str, output_dir: Option<&str>
     println!("🚀 开始回测...");
     let start_time = std::time::Instant::now();
     
-    let mut executor = DataStreamExecutor::new(script, input_matrix);
-    match executor.execute_all() {
-        Ok(output_matrix) => {
+    let mut engine = BacktestEngine::new(config.clone());
+    let strategy_name = std::path::Path::new(script_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("策略");
+    
+    match engine.run(script, input_matrix, strategy_name, csv_path) {
+        Ok(result) => {
             let elapsed = start_time.elapsed();
             println!("\n✅ 回测完成! 耗时: {:.2}s\n", elapsed.as_secs_f64());
-            println!("输出结果: {} 条", output_matrix.len());
             
-            // 保存结果
-            let output_csv = format_output_csv(&output_matrix);
-            let result_file = format!("{}/backtest_result.csv", output);
-            if let Err(e) = fs::write(&result_file, output_csv) {
-                eprintln!("错误: 无法保存结果: {}", e);
-            } else {
-                println!("结果已保存到: {}", result_file);
+            // 生成报告
+            let reporter = Reporter::new(output.to_string());
+            if let Err(e) = reporter.generate_all(&result) {
+                eprintln!("错误: 生成报告失败: {}", e);
+                return;
             }
             
-            // 计算简单统计
-            print_backtest_summary(&output_matrix);
+            // 打印快速摘要
+            Reporter::print_quick_summary(&result);
+            
+            // 提示报告位置
+            println!("\n📁 详细报告已保存到: {}/", output);
+            println!("  - summary.txt        回测摘要");
+            println!("  - summary.json       JSON格式摘要");
+            println!("  - trades.csv         交易明细 ({}笔)", result.trades.len());
+            println!("  - positions.csv      持仓记录 ({}行)", result.positions.len());
+            println!("  - daily_stats.csv    每日统计");
+            println!("  - equity_curve.csv   资金曲线");
         }
         Err(e) => {
-            eprintln!("\n❌ 回测错误: {:?}", e);
+            eprintln!("\n❌ 回测错误: {}", e);
         }
     }
 }
