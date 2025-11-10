@@ -331,11 +331,19 @@ impl Executor {
         func_def: &FunctionDef,
         args: &[Value],
     ) -> Result<Value, RuntimeError> {
-        if func_def.params.len() != args.len() {
+        // 计算必需参数和总参数数量
+        let required_params = func_def.params.iter()
+            .take_while(|p| p.default_value.is_none())
+            .count();
+        let total_params = func_def.params.len();
+        
+        // 检查参数数量
+        if args.len() < required_params || args.len() > total_params {
             return Err(RuntimeError::type_error(&format!(
-                "函数 {} 参数数量不匹配: 期望 {} 个，实际 {} 个",
+                "函数 {} 参数数量不匹配: 期望 {}-{} 个，实际 {} 个",
                 func_def.name,
-                func_def.params.len(),
+                required_params,
+                total_params,
                 args.len()
             )));
         }
@@ -344,8 +352,24 @@ impl Executor {
         let saved_vars = self.context.variables.clone();
         
         // 绑定参数
-        for (param, arg) in func_def.params.iter().zip(args.iter()) {
-            self.context.set(param.name.clone(), arg.clone());
+        for (i, param) in func_def.params.iter().enumerate() {
+            let arg_value = if i < args.len() {
+                // 使用传入的参数值
+                args[i].clone()
+            } else {
+                // 使用默认值
+                if let Some(default_expr) = &param.default_value {
+                    self.execute_expr(default_expr)?
+                } else {
+                    // 这里不应该发生，因为上面已经检查过参数数量
+                    return Err(RuntimeError::type_error(&format!(
+                        "缺少参数 {}",
+                        param.name
+                    )));
+                }
+            };
+            
+            self.context.set(param.name.clone(), arg_value);
         }
         
         // 执行函数体

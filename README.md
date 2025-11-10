@@ -165,14 +165,17 @@ result = x > 10 ? "big" : "small"
 # 嵌套三元
 grade = score >= 90 ? "A" : score >= 60 ? "B" : "C"
 
-# if-else 语句
+# if-elif-else 语句
 if temperature > 30:
     level = "hot"
+elif temperature > 20:
+    level = "warm"
 else:
-    if temperature > 20:
-        level = "warm"
-    else:
-        level = "cold"
+    level = "cold"
+
+# 链式比较
+valid_pe = 0 < pe < 20        # 等价于: (0 < pe) and (pe < 20)
+moderate = 0.02 < vol < 0.05  # 链式比较更简洁
 ```
 
 ### 流式数据处理
@@ -236,8 +239,10 @@ package math
 
 PI = 3.14159
 
-circle_area(r):
-    return PI * r * r
+# 默认参数
+circle_area(r, precision = 2):
+    area = PI * r * r
+    return round(area, precision)
 
 square(x):
     return x * x
@@ -249,7 +254,8 @@ square(x):
 -- INPUT radius:number --
 -- OUTPUT area:number, diameter:number --
 
-area = math.circle_area(radius)
+area = math.circle_area(radius)      # 使用默认 precision=2
+precise_area = math.circle_area(radius, 4)  # 指定 precision=4
 diameter = 2 * math.PI * radius
 
 return [area, diameter]

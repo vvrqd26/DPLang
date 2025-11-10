@@ -182,7 +182,11 @@ impl Parser {
                 }
             };
             
-            params.push(Parameter { name, type_annotation });
+            params.push(Parameter { 
+                name, 
+                type_annotation,
+                default_value: None,  // INPUT/OUTPUT 参数不支持默认值
+            });
         }
         
         Ok(params)
@@ -266,6 +270,8 @@ impl Parser {
         self.consume(TokenType::LeftParen, "期望 (")?;
         
         let mut params = Vec::new();
+        let mut has_default = false;  // 标记是否已经出现默认参数
+        
         while !self.check(&TokenType::RightParen) {
             let param_name = self.expect_identifier("期望参数名")?;
             let type_annotation = if self.match_token(&[TokenType::Colon]) {
@@ -274,7 +280,23 @@ impl Parser {
                 None
             };
             
-            params.push(Parameter { name: param_name, type_annotation });
+            // 解析默认值
+            let default_value = if self.match_token(&[TokenType::Assign]) {
+                has_default = true;
+                Some(self.parse_expression()?)
+            } else {
+                if has_default {
+                    // 默认参数后不能有非默认参数
+                    return Err(self.error("默认参数后面的参数必须也有默认值"));
+                }
+                None
+            };
+            
+            params.push(Parameter { 
+                name: param_name, 
+                type_annotation,
+                default_value,
+            });
             
             if !self.match_token(&[TokenType::Comma]) {
                 break;
@@ -391,6 +413,31 @@ impl Parser {
         
         self.skip_newlines();  // 跳过if块后的换行
         
+        // elif 块 (可以有多个)
+        let mut elif_branches = Vec::new();
+        while self.match_token(&[TokenType::Elif]) {
+            let elif_condition = self.parse_expression()?;
+            self.consume(TokenType::Colon, "期望 :")?;
+            self.consume_newlines()?;
+            self.consume(TokenType::Indent, "期望缩进的 elif 块")?;
+            
+            let mut elif_block = Vec::new();
+            while !self.check(&TokenType::Dedent) && !self.is_at_end() {
+                self.skip_newlines();
+                if self.check(&TokenType::Dedent) {
+                    break;
+                }
+                elif_block.push(self.parse_statement()?);
+            }
+            
+            if !self.is_at_end() {
+                self.consume(TokenType::Dedent, "期望 elif 块结束")?;
+            }
+            
+            self.skip_newlines();
+            elif_branches.push((elif_condition, elif_block));
+        }
+        
         // else 块 (可选)
         let else_block = if self.match_token(&[TokenType::Else]) {
             self.consume(TokenType::Colon, "期望 :")?;
@@ -417,10 +464,20 @@ impl Parser {
             None
         };
         
+        // 将 elif 分支转换为嵌套的 if-else
+        let mut final_else_block = else_block;
+        for (elif_cond, elif_stmts) in elif_branches.into_iter().rev() {
+            final_else_block = Some(vec![Stmt::If {
+                condition: elif_cond,
+                then_block: elif_stmts,
+                else_block: final_else_block,
+            }]);
+        }
+        
         Ok(Stmt::If {
             condition,
             then_block,
-            else_block,
+            else_block: final_else_block,
         })
     }
     
@@ -533,20 +590,56 @@ impl Parser {
         Ok(left)
     }
     
-    // 比较运算
+    // 比较运算 - 支持链式比较：0 < x < 10 => 0 < x and x < 10
     fn parse_comparison(&mut self) -> Result<Expr, ParseError> {
-        let mut left = self.parse_addition()?;
+        let left = self.parse_addition()?;
         
+        // 收集所有连续的比较操作
+        let mut comparisons = Vec::new();
         while let Some(op) = self.match_comparison_op() {
             let right = self.parse_addition()?;
-            left = Expr::Binary {
+            comparisons.push((op, right));
+        }
+        
+        if comparisons.is_empty() {
+            return Ok(left);
+        }
+        
+        // 如果只有一个比较，直接返回
+        if comparisons.len() == 1 {
+            let (op, right) = comparisons.into_iter().next().unwrap();
+            return Ok(Expr::Binary {
                 left: Box::new(left),
                 op,
                 right: Box::new(right),
-            };
+            });
         }
         
-        Ok(left)
+        // 链式比较：转换为 and 连接的多个比较
+        // 0 < x < 10 => (0 < x) and (x < 10)
+        let mut result = None;
+        let mut prev_right = left;
+        
+        for (op, right) in comparisons {
+            let current_comparison = Expr::Binary {
+                left: Box::new(prev_right.clone()),
+                op,
+                right: Box::new(right.clone()),
+            };
+            
+            result = Some(match result {
+                None => current_comparison,
+                Some(prev) => Expr::Binary {
+                    left: Box::new(prev),
+                    op: BinaryOp::And,
+                    right: Box::new(current_comparison),
+                },
+            });
+            
+            prev_right = right;
+        }
+        
+        Ok(result.unwrap())
     }
     
     fn match_comparison_op(&mut self) -> Option<BinaryOp> {
@@ -1003,6 +1096,24 @@ return [code, ma5]
             assert!(matches!(args[1], Expr::Lambda { .. }));
         } else {
             panic!("Expected Call");
+        }
+    }
+    
+    #[test]
+    fn test_parse_chained_comparison() {
+        let source = "0 < x < 10";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize().unwrap();
+        let mut parser = Parser::new(tokens);
+        
+        let expr = parser.parse_expression().unwrap();
+        // 链式比较应该被转换为: (0 < x) and (x < 10)
+        if let Expr::Binary { left, op, right } = expr {
+            assert_eq!(op, BinaryOp::And);
+            assert!(matches!(*left, Expr::Binary { .. }));
+            assert!(matches!(*right, Expr::Binary { .. }));
+        } else {
+            panic!("Expected Binary expression with And");
         }
     }
 }

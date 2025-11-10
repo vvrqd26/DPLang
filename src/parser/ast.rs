@@ -200,6 +200,7 @@ pub struct FunctionDef {
 pub struct Parameter {
     pub name: String,
     pub type_annotation: Option<TypeAnnotation>,
+    pub default_value: Option<Expr>,  // 默认参数值
 }
 
 /// 类型标注

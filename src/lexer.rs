@@ -8,6 +8,7 @@ pub enum TokenType {
     // 关键字
     Return,
     If,
+    Elif,
     Else,
     Package,
     Mut,
@@ -423,6 +424,7 @@ impl Lexer {
         let token_type = match ident.as_str() {
             "return" => TokenType::Return,
             "if" => TokenType::If,
+            "elif" => TokenType::Elif,
             "else" => TokenType::Else,
             "package" => TokenType::Package,
             "mut" => TokenType::Mut,

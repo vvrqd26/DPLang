@@ -93,7 +93,7 @@ _std_dev(data, period):
 #   period: 周期（默认20）
 #
 # 返回: 当前时刻的MA值
-moving_average(prices, period):
+moving_average(prices, period = 20):
     return SMA(prices, period)
 
 # MACD 指标 (Moving Average Convergence Divergence)
@@ -106,7 +106,7 @@ moving_average(prices, period):
 #   signal: 信号线周期（默认9）
 #
 # 返回: [DIF, DEA, MACD]
-MACD(prices, fast, slow, signal):
+MACD(prices, fast = 12, slow = 26, signal = 9):
     # 计算快慢EMA
     ema_fast = EMA(prices, fast)
     ema_slow = EMA(prices, slow)
@@ -134,7 +134,7 @@ MACD(prices, fast, slow, signal):
 #   std_multiplier: 标准差倍数（默认2）
 #
 # 返回: [upper, middle, lower]
-BOLL(prices, period, std_multiplier):
+BOLL(prices, period = 20, std_multiplier = 2):
     # 中轨 = SMA
     middle = SMA(prices, period)
     
@@ -164,7 +164,7 @@ BOLL(prices, period, std_multiplier):
 #   period: 周期（默认14）
 #
 # 返回: RSI值 (0-100)
-RSI(prices, period):
+RSI(prices, period = 14):
     # 获取窗口数据
     window = prices[-(period - 1):0]
     
@@ -213,28 +213,16 @@ RSI(prices, period):
     
     return rsi
 
-# ========== 便捷函数（使用默认参数） ==========
-
-# 快速计算20日均线
-MA20(prices):
-    return MA(prices, 20)
-
-# 快速计算5日均线
-MA5(prices):
-    return MA(prices, 5)
-
-# 快速计算10日均线
-MA10(prices):
-    return MA(prices, 10)
+# ========== 便捷函数（利用默认参数） ==========
 
 # 标准MACD (12, 26, 9)
 MACD_standard(prices):
-    return MACD(prices, 12, 26, 9)
+    return MACD(prices)  # 使用默认参数
 
 # 标准布林带 (20, 2)
 BOLL_standard(prices):
-    return BOLL(prices, 20, 2)
+    return BOLL(prices)  # 使用默认参数
 
 # 标准RSI (14)
 RSI14(prices):
-    return RSI(prices, 14)
+    return RSI(prices)  # 使用默认参数
