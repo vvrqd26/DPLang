@@ -90,16 +90,31 @@ impl Value {
     }
     
     /// 转换为 f64
+    /// 注意：Null 值会返回错误，保持语义明确性
+    /// 如需在计算中跳过 Null，请使用 is_null() 检查或 to_number_or_default()
     pub fn to_number(&self) -> Result<f64, RuntimeError> {
         match self {
             Value::Number(n) => Ok(*n),
             Value::Decimal(d) => Ok(d.to_string().parse().unwrap_or(0.0)),
             Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),
-            Value::Null => Ok(0.0),  // Null 转换为 0，不影响运行
+            Value::Null => Err(RuntimeError::type_error("Null 值无法转换为数字")),
             Value::String(s) => s.parse().map_err(|_| RuntimeError::type_error("无法转换为数字")),
             Value::Lambda { .. } => Err(RuntimeError::type_error("Lambda 无法转换为数字")),
             _ => Err(RuntimeError::type_error("无法转换为数字")),
         }
+    }
+    
+    /// 转换为 f64，Null 返回默认值（用于指标计算等场景）
+    pub fn to_number_or_default(&self, default: f64) -> Result<f64, RuntimeError> {
+        match self {
+            Value::Null => Ok(default),
+            _ => self.to_number(),
+        }
+    }
+    
+    /// 检查是否为 Null
+    pub fn is_null(&self) -> bool {
+        matches!(self, Value::Null)
     }
         
     /// 转换为 Decimal

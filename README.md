@@ -83,11 +83,16 @@ DPLang 不仅仅是一个数据处理语言，更是一个**高性能流式计�
 - 🔧 **技术指标库** - 内置 SMA、EMA、MACD、RSI、BOLL、ATR、KDJ 等常用指标
 - 🧠 **智能缓存** - 包加载缓存机制，避免重复解析
 
-### 6. 性能优化 (2024-11-09 更新)
+### 6. 性能优化 (2024-11-10 更新)
 - ✅ **引入csv crate** - 使用高性能CSV解析库，预期5-10x性能提升
 - ✅ **修复MACD指标** - 完整实现Signal线和Histogram计算（原为简化版本）
 - ✅ **修复KDJ指标** - 实现K、D值平滑计算（原为简化版本）
 - ✅ **增量计算器架构** - EMAState, MACDCalculator, KDJCalculator支持流式增量更新
+- ✅ **Null语义明确化** - 系统层面null语义明确，指标函数正确处理null值
+  - ✅ `Value::to_number()` 对null返回错误，保持语义明确性
+  - ✅ 新增 `Value::to_number_or_default()` 和 `Value::is_null()` 辅助方法
+  - ✅ 所有内置指标（SMA、EMA、RSI等）正确跳过null值
+  - ✅ 内置函数（sum、avg等）正确处理null值
 - 📊 **依赖管理**
   - 新增: csv = "1.3" (CSV解析优化)
   - 新增: thiserror = "1.0" (错误处理)
@@ -171,14 +176,16 @@ return [adjusted]
 - ✅ Parser: 3个测试
 - ✅ Runtime: 4个测试
 - ✅ Semantic Analyzer: 5个测试 (未定义变量、遮蔽检测、未使用变量)
-- ✅ Indicators: 5个测试 (SMA, EMA, RSI, BOLL, ATR 技术指标测试)
+- ✅ Indicators: 9个测试 (SMA, EMA, RSI, BOLL, ATR 技术指标测试 + Null处理测试)
   - 🎯 新增: MACDCalculator, KDJCalculator 增量计算器测试
+  - 🎯 新增: Null值处理测试（SMA/RSI对null的正确处理）
 - ✅ PackageLoader: 7个测试 (包加载、缓存、批量加载测试)
-- ✅ Executor: 20个测试 (包含数据流、包导入、时间序列函数、技术指标、print函数测试)
+- ✅ Executor: 23个测试 (包含数据流、包导入、时间序列函数、技术指标、print函数测试)
 - ✅ API: 3个测试 (JSON/CSV格式支持)
 - ✅ Streaming: 1个测试 (CSV分组写入)
+- ✅ Orchestration: 14个测试 (编排系统相关)
 
-**总计: 54个测试全部通过 ✅**
+**总计: 86个测试全部通过 ✅**
 
 ## 🎯 核心特性演示
 
@@ -249,29 +256,6 @@ return [ma2, 涨幅, 是否新高]
 
 ---
 
-### ⚠️ 已废弃的时间序列函数（不推荐使用）
-
-以下函数已被下标索引语法取代，将来版本会移除：
-
-```dplang
-# ⚠️ 已废弃 - 请使用 close[-1] 代替
-prev_close = ref("close", 1)
-
-# ⚠️ 已废弃 - 请使用 close[-1] 代替
-prev_close = offset("close", 1)
-
-# ⚠️ 已废弃 - 请使用 close[-5:] 代替
-prices_past = past("close", 5)
-
-# ⚠️ 已废弃 - 请使用 close[-5:0] 代替
-window_prices = window("close", 5)
-```
-
-**迁移指南：**
-- `ref("var", n)` → `var[-n]`
-- `offset("var", n)` → `var[-n]`
-- `past("var", n)` → `var[-n:]`
-- `window("var", n)` → `var[-n:0]`
 
 ### 多包导入机制
 ```dplang

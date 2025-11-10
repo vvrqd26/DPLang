@@ -84,7 +84,11 @@ impl DataRouter {
     fn extract_routing_key(&self, data: &HashMap<String, Value>) -> String {
         if let Some(ref key_col) = self.key_column {
             if let Some(value) = data.get(key_col) {
-                return value.to_string();
+                // 对于字符串类型，直接返回字符串内容，不带引号
+                return match value {
+                    Value::String(s) => s.clone(),
+                    _ => value.to_string(),
+                };
             }
         }
         String::new()

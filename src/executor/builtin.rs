@@ -4,6 +4,7 @@ use super::Executor;
 use super::data_stream::CURRENT_DATA_STREAM;
 use crate::runtime::{Value, RuntimeError};
 use crate::indicators;
+use chrono::{DateTime, NaiveDateTime, NaiveDate, Duration, Utc, Local, TimeZone, Datelike, Timelike};
 
 impl Executor {
     /// 执行内置函数
@@ -99,6 +100,31 @@ impl Executor {
             
             // 工具函数
             "print" => self.builtin_print(args),
+            
+            // Null 处理函数
+            "is_null" => self.builtin_is_null(args),
+            "coalesce" => self.builtin_coalesce(args),
+            "nvl" => self.builtin_nvl(args),
+            "if_null" => self.builtin_if_null(args),
+            "nullif" => self.builtin_nullif(args),
+            
+            // 时间日期函数
+            "now" => self.builtin_now(args),
+            "today" => self.builtin_today(args),
+            "parse_time" => self.builtin_parse_time(args),
+            "format_time" => self.builtin_format_time(args),
+            "time_diff" => self.builtin_time_diff(args),
+            "time_add" => self.builtin_time_add(args),
+            "time_sub" => self.builtin_time_sub(args),
+            "year" => self.builtin_year(args),
+            "month" => self.builtin_month(args),
+            "day" => self.builtin_day(args),
+            "hour" => self.builtin_hour(args),
+            "minute" => self.builtin_minute(args),
+            "second" => self.builtin_second(args),
+            "weekday" => self.builtin_weekday(args),
+            "timestamp" => self.builtin_timestamp(args),
+            "from_timestamp" => self.builtin_from_timestamp(args),
             
             _ => Err(RuntimeError::undefined_function(name)),
         }
@@ -515,6 +541,432 @@ impl Executor {
         
         // 返回 null
         Ok(Value::Null)
+    }
+    
+    // ==================== Null 处理函数 ====================
+    
+    /// is_null(value) - 检查值是否为 null
+    fn builtin_is_null(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("is_null 需要 1 个参数"));
+        }
+        Ok(Value::Bool(args[0].is_null()))
+    }
+    
+    /// coalesce(value1, value2, ...) - 返回第一个非 null 值
+    fn builtin_coalesce(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.is_empty() {
+            return Err(RuntimeError::type_error("coalesce 需要至少一个参数"));
+        }
+        
+        for arg in args {
+            if !arg.is_null() {
+                return Ok(arg.clone());
+            }
+        }
+        
+        // 所有参数都是 null，返回 null
+        Ok(Value::Null)
+    }
+    
+    /// nvl(value, default) - 如果 value 为 null，返回 default
+    fn builtin_nvl(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 2 {
+            return Err(RuntimeError::type_error("nvl 需要 2 个参数"));
+        }
+        
+        if args[0].is_null() {
+            Ok(args[1].clone())
+        } else {
+            Ok(args[0].clone())
+        }
+    }
+    
+    /// if_null(value, default) - nvl 的别名
+    fn builtin_if_null(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        self.builtin_nvl(args)
+    }
+    
+    /// nullif(value1, value2) - 如果两个值相等则返回 null，否则返回 value1
+    fn builtin_nullif(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 2 {
+            return Err(RuntimeError::type_error("nullif 需要 2 个参数"));
+        }
+        
+        if args[0] == args[1] {
+            Ok(Value::Null)
+        } else {
+            Ok(args[0].clone())
+        }
+    }
+    
+    // ==================== 时间日期函数 ====================
+    
+    /// now() - 返回当前时间戳字符串（ISO 8601格式）
+    fn builtin_now(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if !args.is_empty() {
+            return Err(RuntimeError::type_error("now 不需要参数"));
+        }
+        
+        let now = Local::now();
+        Ok(Value::String(now.format("%Y-%m-%d %H:%M:%S").to_string()))
+    }
+    
+    /// today() - 返回当前日期字符串（YYYY-MM-DD格式）
+    fn builtin_today(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if !args.is_empty() {
+            return Err(RuntimeError::type_error("today 不需要参数"));
+        }
+        
+        let today = Local::now().date_naive();
+        Ok(Value::String(today.format("%Y-%m-%d").to_string()))
+    }
+    
+    /// parse_time(time_string, format?) - 解析时间字符串
+    /// 如果不指定格式，尝试常见格式
+    fn builtin_parse_time(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.is_empty() || args.len() > 2 {
+            return Err(RuntimeError::type_error("parse_time 需要 1-2 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("parse_time 的第一个参数必须是字符串")),
+        };
+        
+        // 如果提供了格式
+        if args.len() == 2 {
+            let format = match &args[1] {
+                Value::String(s) => s,
+                _ => return Err(RuntimeError::type_error("parse_time 的第二个参数必须是字符串")),
+            };
+            
+            // 尝试解析为日期时间
+            if let Ok(dt) = NaiveDateTime::parse_from_str(time_str, format) {
+                return Ok(Value::String(dt.format("%Y-%m-%d %H:%M:%S").to_string()));
+            }
+            
+            // 尝试仅解析日期
+            if let Ok(date) = NaiveDate::parse_from_str(time_str, format) {
+                return Ok(Value::String(date.format("%Y-%m-%d").to_string()));
+            }
+            
+            return Err(RuntimeError::type_error(&format!("无法解析时间字符串: {}", time_str)));
+        }
+        
+        // 尝试常见格式
+        let formats = vec![
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d",
+            "%Y/%m/%d %H:%M:%S",
+            "%Y/%m/%d",
+            "%Y%m%d",
+        ];
+        
+        for fmt in formats {
+            if let Ok(dt) = NaiveDateTime::parse_from_str(time_str, fmt) {
+                return Ok(Value::String(dt.format("%Y-%m-%d %H:%M:%S").to_string()));
+            }
+            if let Ok(date) = NaiveDate::parse_from_str(time_str, fmt) {
+                return Ok(Value::String(date.format("%Y-%m-%d").to_string()));
+            }
+        }
+        
+        Err(RuntimeError::type_error(&format!("无法解析时间字符串: {}", time_str)))
+    }
+    
+    /// format_time(time_string, format) - 格式化时间字符串
+    fn builtin_format_time(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 2 {
+            return Err(RuntimeError::type_error("format_time 需要 2 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("format_time 的第一个参数必须是字符串")),
+        };
+        
+        let format = match &args[1] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("format_time 的第二个参数必须是字符串")),
+        };
+        
+        // 先尝试解析时间字符串
+        let parsed = self.builtin_parse_time(&[Value::String(time_str.clone())])?;
+        
+        if let Value::String(parsed_str) = parsed {
+            // 解析标准格式
+            if let Ok(dt) = NaiveDateTime::parse_from_str(&parsed_str, "%Y-%m-%d %H:%M:%S") {
+                return Ok(Value::String(dt.format(format).to_string()));
+            }
+            if let Ok(date) = NaiveDate::parse_from_str(&parsed_str, "%Y-%m-%d") {
+                return Ok(Value::String(date.format(format).to_string()));
+            }
+        }
+        
+        Err(RuntimeError::type_error("格式化时间失败"))
+    }
+    
+    /// time_diff(time1, time2, unit?) - 计算两个时间的差值
+    /// unit: "seconds", "minutes", "hours", "days" (默认 "days")
+    fn builtin_time_diff(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() < 2 || args.len() > 3 {
+            return Err(RuntimeError::type_error("time_diff 需要 2-3 个参数"));
+        }
+        
+        let time1_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("time_diff 的第一个参数必须是字符串")),
+        };
+        
+        let time2_str = match &args[1] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("time_diff 的第二个参数必须是字符串")),
+        };
+        
+        let unit = if args.len() == 3 {
+            match &args[2] {
+                Value::String(s) => s.as_str(),
+                _ => return Err(RuntimeError::type_error("time_diff 的第三个参数必须是字符串")),
+            }
+        } else {
+            "days"
+        };
+        
+        // 解析两个时间
+        let dt1 = self.parse_datetime_flexible(time1_str)?;
+        let dt2 = self.parse_datetime_flexible(time2_str)?;
+        
+        // 计算差值
+        let duration = dt1.signed_duration_since(dt2);
+        
+        let result = match unit {
+            "seconds" => duration.num_seconds() as f64,
+            "minutes" => duration.num_minutes() as f64,
+            "hours" => duration.num_hours() as f64,
+            "days" => duration.num_days() as f64,
+            _ => return Err(RuntimeError::type_error(&format!("不支持的时间单位: {}", unit))),
+        };
+        
+        Ok(Value::Number(result))
+    }
+    
+    /// time_add(time_string, amount, unit) - 时间加法
+    fn builtin_time_add(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 3 {
+            return Err(RuntimeError::type_error("time_add 需要 3 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("time_add 的第一个参数必须是字符串")),
+        };
+        
+        let amount = args[1].to_number()? as i64;
+        
+        let unit = match &args[2] {
+            Value::String(s) => s.as_str(),
+            _ => return Err(RuntimeError::type_error("time_add 的第三个参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        
+        let new_dt = match unit {
+            "seconds" => dt + Duration::seconds(amount),
+            "minutes" => dt + Duration::minutes(amount),
+            "hours" => dt + Duration::hours(amount),
+            "days" => dt + Duration::days(amount),
+            "weeks" => dt + Duration::weeks(amount),
+            _ => return Err(RuntimeError::type_error(&format!("不支持的时间单位: {}", unit))),
+        };
+        
+        Ok(Value::String(new_dt.format("%Y-%m-%d %H:%M:%S").to_string()))
+    }
+    
+    /// time_sub(time_string, amount, unit) - 时间减法
+    fn builtin_time_sub(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 3 {
+            return Err(RuntimeError::type_error("time_sub 需要 3 个参数"));
+        }
+        
+        // 取反 amount 并调用 time_add
+        let amount = args[1].to_number()?;
+        let negated_amount = Value::Number(-amount);
+        
+        self.builtin_time_add(&[args[0].clone(), negated_amount, args[2].clone()])
+    }
+    
+    /// year(time_string) - 提取年份
+    fn builtin_year(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("year 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("year 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.year() as f64))
+    }
+    
+    /// month(time_string) - 提取月份
+    fn builtin_month(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("month 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("month 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.month() as f64))
+    }
+    
+    /// day(time_string) - 提取日期
+    fn builtin_day(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("day 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("day 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.day() as f64))
+    }
+    
+    /// hour(time_string) - 提取小时
+    fn builtin_hour(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("hour 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("hour 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.hour() as f64))
+    }
+    
+    /// minute(time_string) - 提取分钟
+    fn builtin_minute(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("minute 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("minute 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.minute() as f64))
+    }
+    
+    /// second(time_string) - 提取秒数
+    fn builtin_second(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("second 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("second 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.second() as f64))
+    }
+    
+    /// weekday(time_string) - 获取星期几（0=周一，6=周日）
+    fn builtin_weekday(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("weekday 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("weekday 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        // 0 = Monday, 6 = Sunday
+        Ok(Value::Number(dt.weekday().num_days_from_monday() as f64))
+    }
+    
+    /// timestamp(time_string) - 转换为Unix时间戳（秒）
+    fn builtin_timestamp(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("timestamp 需要 1 个参数"));
+        }
+        
+        let time_str = match &args[0] {
+            Value::String(s) => s,
+            _ => return Err(RuntimeError::type_error("timestamp 的参数必须是字符串")),
+        };
+        
+        let dt = self.parse_datetime_flexible(time_str)?;
+        Ok(Value::Number(dt.and_utc().timestamp() as f64))
+    }
+    
+    /// from_timestamp(timestamp) - 从Unix时间戳转换为时间字符串
+    fn builtin_from_timestamp(&self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.len() != 1 {
+            return Err(RuntimeError::type_error("from_timestamp 需要 1 个参数"));
+        }
+        
+        let timestamp = args[0].to_number()? as i64;
+        
+        match Utc.timestamp_opt(timestamp, 0) {
+            chrono::LocalResult::Single(dt) => {
+                let local_dt = dt.with_timezone(&Local);
+                Ok(Value::String(local_dt.format("%Y-%m-%d %H:%M:%S").to_string()))
+            },
+            _ => Err(RuntimeError::type_error("无效的时间戳")),
+        }
+    }
+    
+    // ==================== 辅助函数 ====================
+    
+    /// 灵活解析时间字符串（支持多种格式）
+    fn parse_datetime_flexible(&self, time_str: &str) -> Result<NaiveDateTime, RuntimeError> {
+        // 尝试常见的日期时间格式
+        let datetime_formats = vec![
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y/%m/%d %H:%M:%S",
+            "%Y/%m/%d %H:%M",
+        ];
+        
+        for fmt in datetime_formats {
+            if let Ok(dt) = NaiveDateTime::parse_from_str(time_str, fmt) {
+                return Ok(dt);
+            }
+        }
+        
+        // 尝试仅日期格式，补充时间为 00:00:00
+        let date_formats = vec![
+            "%Y-%m-%d",
+            "%Y/%m/%d",
+            "%Y%m%d",
+        ];
+        
+        for fmt in date_formats {
+            if let Ok(date) = NaiveDate::parse_from_str(time_str, fmt) {
+                return Ok(date.and_hms_opt(0, 0, 0).unwrap());
+            }
+        }
+        
+        Err(RuntimeError::type_error(&format!("无法解析时间字符串: {}", time_str)))
     }
     
     /// 将 Value 转换为可读字符串

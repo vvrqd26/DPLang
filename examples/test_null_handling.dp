@@ -1,0 +1,19 @@
+-- 测试 Null 值处理示例 --
+-- INPUT price:number --
+-- OUTPUT ma5:number, rsi:number, signal:string --
+
+# 使用 window 函数获取过去5个价格（包括当前）
+prices = window("price", 5)
+
+# 计算 SMA(5) - 会正确跳过 null 值
+ma5 = SMA(prices, 5)
+
+# 计算 RSI(5) - 会正确跳过 null 值
+rsi = RSI(prices, 5)
+
+# 生成信号
+signal = (rsi == null) ? "无数据" : 
+         (rsi > 70) ? "超买" :
+         (rsi < 30) ? "超卖" : "正常"
+
+return [ma5, rsi, signal]

@@ -10,11 +10,23 @@ pub fn sma(values: &[Value], period: usize) -> Result<Value, RuntimeError> {
     }
     
     let mut sum = 0.0;
+    let mut count = 0;
+    
+    // 计算窗口内的有效值和
     for i in (values.len() - period)..values.len() {
-        sum += values[i].to_number()?;  // Null 会自动转为 0
+        if !values[i].is_null() {
+            sum += values[i].to_number()?;
+            count += 1;
+        }
     }
     
-    Ok(Value::Number(sum / period as f64))
+    // 如果没有有效数据，返回 null
+    if count == 0 {
+        return Ok(Value::Null);
+    }
+    
+    // 使用实际有效数据个数计算平均值
+    Ok(Value::Number(sum / count as f64))
 }
 
 /// 指数移动平均线 (Exponential Moving Average)
@@ -24,9 +36,19 @@ pub fn ema(values: &[Value], period: usize) -> Result<Value, RuntimeError> {
         return Ok(Value::Null);
     }
     
-    if values.len() < period {
-        // 数据不足，返回简单平均
-        return sma(values, values.len());
+    // 过滤掉 null 值
+    let valid_values: Vec<f64> = values.iter()
+        .filter(|v| !v.is_null())
+        .map(|v| v.to_number())
+        .collect::<Result<Vec<_>, _>>()?;
+    
+    if valid_values.len() < period {
+        // 有效数据不足，返回简单平均
+        if valid_values.is_empty() {
+            return Ok(Value::Null);
+        }
+        let sum: f64 = valid_values.iter().sum();
+        return Ok(Value::Number(sum / valid_values.len() as f64));
     }
     
     // EMA 平滑系数
@@ -35,13 +57,13 @@ pub fn ema(values: &[Value], period: usize) -> Result<Value, RuntimeError> {
     // 初始 EMA 使用 SMA
     let mut ema_value = 0.0;
     for i in 0..period {
-        ema_value += values[i].to_number()?;
+        ema_value += valid_values[i];
     }
     ema_value /= period as f64;
     
     // 递推计算 EMA
-    for i in period..values.len() {
-        let price = values[i].to_number()?;
+    for i in period..valid_values.len() {
+        let price = valid_values[i];
         ema_value = price * k + ema_value * (1.0 - k);
     }
     
@@ -90,23 +112,32 @@ pub fn rsi(prices: &[Value], period: usize) -> Result<Value, RuntimeError> {
     
     let mut gains = 0.0;
     let mut losses = 0.0;
+    let mut count = 0;
     
-    // 计算价格变化
+    // 计算价格变化，跳过 null 值
     for i in (prices.len() - period)..prices.len() {
-        let prev = prices[i - 1].to_number()?;
-        let curr = prices[i].to_number()?;
-        let change = curr - prev;
-        
-        if change > 0.0 {
-            gains += change;
-        } else {
-            losses += -change;
+        if !prices[i].is_null() && !prices[i - 1].is_null() {
+            let prev = prices[i - 1].to_number()?;
+            let curr = prices[i].to_number()?;
+            let change = curr - prev;
+            
+            if change > 0.0 {
+                gains += change;
+            } else {
+                losses += -change;
+            }
+            count += 1;
         }
     }
     
+    // 有效数据不足
+    if count == 0 {
+        return Ok(Value::Null);
+    }
+    
     // 平均涨跌
-    let avg_gain = gains / period as f64;
-    let avg_loss = losses / period as f64;
+    let avg_gain = gains / count as f64;
+    let avg_loss = losses / count as f64;
     
     if avg_loss == 0.0 {
         return Ok(Value::Number(100.0));
@@ -131,16 +162,29 @@ pub fn bollinger_bands(
     }
     
     // 中轨 = SMA
-    let middle = sma(prices, period)?.to_number()?;
-    
-    // 计算标准差
-    let mut variance = 0.0;
-    for i in (prices.len() - period)..prices.len() {
-        let price = prices[i].to_number()?;
-        let diff = price - middle;
-        variance += diff * diff;
+    let middle_value = sma(prices, period)?;
+    if middle_value.is_null() {
+        return Ok(Value::Array(vec![Value::Null, Value::Null, Value::Null]));
     }
-    variance /= period as f64;
+    let middle = middle_value.to_number()?;
+    
+    // 计算标准差（跳过 null 值）
+    let mut variance = 0.0;
+    let mut count = 0;
+    for i in (prices.len() - period)..prices.len() {
+        if !prices[i].is_null() {
+            let price = prices[i].to_number()?;
+            let diff = price - middle;
+            variance += diff * diff;
+            count += 1;
+        }
+    }
+    
+    if count == 0 {
+        return Ok(Value::Array(vec![Value::Null, Value::Null, Value::Null]));
+    }
+    
+    variance /= count as f64;
     let std = variance.sqrt();
     
     // 上轨 = 中轨 + N * 标准差
@@ -167,21 +211,30 @@ pub fn atr(
     }
     
     let mut tr_sum = 0.0;
+    let mut count = 0;
     
     for i in (high.len() - period)..high.len() {
-        let h = high[i].to_number()?;
-        let l = low[i].to_number()?;
-        let c_prev = close[i - 1].to_number()?;
-        
-        // TR = max(H-L, |H-C_prev|, |L-C_prev|)
-        let tr = (h - l)
-            .max((h - c_prev).abs())
-            .max((l - c_prev).abs());
-        
-        tr_sum += tr;
+        // 跳过包含 null 的数据
+        if !high[i].is_null() && !low[i].is_null() && !close[i - 1].is_null() {
+            let h = high[i].to_number()?;
+            let l = low[i].to_number()?;
+            let c_prev = close[i - 1].to_number()?;
+            
+            // TR = max(H-L, |H-C_prev|, |L-C_prev|)
+            let tr = (h - l)
+                .max((h - c_prev).abs())
+                .max((l - c_prev).abs());
+            
+            tr_sum += tr;
+            count += 1;
+        }
     }
     
-    Ok(Value::Number(tr_sum / period as f64))
+    if count == 0 {
+        return Ok(Value::Null);
+    }
+    
+    Ok(Value::Number(tr_sum / count as f64))
 }
 
 /// KDJ 指标
@@ -198,15 +251,23 @@ pub fn kdj(
         return Ok(Value::Array(vec![Value::Null, Value::Null, Value::Null]));
     }
     
-    // 找出 N 日内的最高价和最低价
+    // 找出 N 日内的最高价和最低价（跳过 null 值）
     let mut highest = f64::MIN;
     let mut lowest = f64::MAX;
+    let mut has_valid_data = false;
     
     for i in (high.len() - n)..high.len() {
-        let h = high[i].to_number()?;
-        let l = low[i].to_number()?;
-        highest = highest.max(h);
-        lowest = lowest.min(l);
+        if !high[i].is_null() && !low[i].is_null() {
+            let h = high[i].to_number()?;
+            let l = low[i].to_number()?;
+            highest = highest.max(h);
+            lowest = lowest.min(l);
+            has_valid_data = true;
+        }
+    }
+    
+    if !has_valid_data || close[close.len() - 1].is_null() {
+        return Ok(Value::Array(vec![Value::Null, Value::Null, Value::Null]));
     }
     
     let c = close[close.len() - 1].to_number()?;
@@ -330,5 +391,68 @@ mod tests {
         
         let result = atr(&high, &low, &close, 2).unwrap();
         assert!(result.to_number().unwrap() > 0.0);
+    }
+    
+    #[test]
+    fn test_sma_with_null() {
+        // 测试 SMA 正确处理 null 值
+        let prices = vec![
+            Value::Number(10.0),
+            Value::Null,           // null 应该被跳过
+            Value::Number(12.0),
+            Value::Number(13.0),
+            Value::Number(14.0),
+        ];
+        
+        // 窗口期为 3，最后 3 个值是 [12, 13, 14]（没有null）
+        let result = sma(&prices, 3).unwrap();
+        assert_eq!(result.to_number().unwrap(), 13.0); // (12+13+14)/3
+    }
+    
+    #[test]
+    fn test_sma_all_null() {
+        // 测试当窗口内全是 null 时返回 null
+        let prices = vec![
+            Value::Number(10.0),
+            Value::Null,
+            Value::Null,
+            Value::Null,
+        ];
+        
+        let result = sma(&prices, 3).unwrap();
+        assert!(result.is_null());
+    }
+    
+    #[test]
+    fn test_rsi_with_null() {
+        // 测试 RSI 正确处理 null 值
+        let prices = vec![
+            Value::Number(44.0),
+            Value::Null,           // null 应该被跳过
+            Value::Number(45.0),
+            Value::Number(46.0),
+            Value::Number(47.0),
+            Value::Number(48.0),
+        ];
+        
+        let result = rsi(&prices, 3).unwrap();
+        // 应该能正常计算，跳过 null
+        assert!(result.to_number().is_ok());
+    }
+    
+    #[test]
+    fn test_null_conversion_error() {
+        // 测试系统层面 null 的语义明确性
+        let null_value = Value::Null;
+        
+        // null 直接转换为数字应该报错
+        assert!(null_value.to_number().is_err());
+        
+        // null 使用默认值转换应该成功
+        assert_eq!(null_value.to_number_or_default(0.0).unwrap(), 0.0);
+        
+        // is_null 检查
+        assert!(null_value.is_null());
+        assert!(!Value::Number(0.0).is_null());
     }
 }
