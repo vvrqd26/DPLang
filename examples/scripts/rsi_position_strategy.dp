@@ -1,0 +1,18 @@
+# RSI 超买超卖策略
+# 使用内置仓位操作函数
+
+-- INPUT date:string, close:number, volume:number --
+-- OUTPUT signal:string --
+
+# 计算RSI指标
+rsi = RSI(close, 14)
+
+# 定义超买超卖阈值
+oversold = 30    # 超卖
+overbought = 70  # 超买
+
+# 生成交易信号
+# 当RSI低于30时买入，高于70时卖出
+signal = BUY(rsi < oversold) ? BUY() : (SELL(rsi > overbought) ? SELL() : "持有")
+
+return signal

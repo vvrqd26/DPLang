@@ -1,0 +1,14 @@
+# 简单趋势策略
+# 演示内置仓位操作函数的基本用法
+
+-- INPUT date:string, close:number, volume:number --
+-- OUTPUT signal:string --
+
+# 简单规则：价格大于110买入，小于108卖出
+should_buy = close > 110
+should_sell = close < 108
+
+# 使用内置函数生成标准信号
+signal = should_buy ? BUY() : (should_sell ? SELL() : "持有")
+
+return signal

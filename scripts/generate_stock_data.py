@@ -82,16 +82,24 @@ def save_to_csv(data, filename):
 if __name__ == "__main__":
     num_stocks = 100
     days = 60
+    output_file = 'test_data/stock_data_100.csv'
     
     if len(sys.argv) > 1:
         num_stocks = int(sys.argv[1])
     if len(sys.argv) > 2:
         days = int(sys.argv[2])
+    if len(sys.argv) > 3:
+        output_file = sys.argv[3]
+    
+    # 如果参数超过100支股票，使用不同的默认文件名
+    if num_stocks > 100 and output_file == 'test_data/stock_data_100.csv':
+        output_file = 'test_data/large_stock_data.csv'
     
     print(f"Generating stock data...")
     print(f"Number of stocks: {num_stocks}")
     print(f"Days per stock: {days}")
     print(f"Total rows: {num_stocks * days}")
+    print(f"Output file: {output_file}")
     
     data = generate_stock_data(num_stocks, days)
-    save_to_csv(data, 'test_data/stock_data_100.csv')
+    save_to_csv(data, output_file)

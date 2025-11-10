@@ -126,6 +126,12 @@ impl Executor {
             "timestamp" => self.builtin_timestamp(args),
             "from_timestamp" => self.builtin_from_timestamp(args),
             
+            // 仓位操作函数
+            "BUY" => self.builtin_buy(args),
+            "SELL" => self.builtin_sell(args),
+            "CLOSE" => self.builtin_close(args),
+            "POSITION" => self.builtin_position(args),
+            
             _ => Err(RuntimeError::undefined_function(name)),
         }
     }
@@ -995,5 +1001,92 @@ impl Executor {
                 format!("<function {}>", func_def.name)
             }
         }
+    }
+    
+    // ==================== 仓位操作函数 ====================
+    
+    /// BUY() - 买入信号
+    /// 返回 "买入" 字符串，供回测引擎识别
+    fn builtin_buy(&mut self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.is_empty() {
+            // BUY() - 无条件买入
+            return Ok(Value::String("买入".to_string()));
+        }
+        
+        // BUY(condition) - 条件买入
+        if args.len() == 1 {
+            let condition = args[0].to_bool();
+            if condition {
+                return Ok(Value::String("买入".to_string()));
+            } else {
+                return Ok(Value::String("持有".to_string()));
+            }
+        }
+        
+        Err(RuntimeError::type_error("BUY 接受 0 或 1 个参数"))
+    }
+    
+    /// SELL() - 卖出信号
+    /// 返回 "卖出" 字符串，供回测引擎识别
+    fn builtin_sell(&mut self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.is_empty() {
+            // SELL() - 无条件卖出
+            return Ok(Value::String("卖出".to_string()));
+        }
+        
+        // SELL(condition) - 条件卖出
+        if args.len() == 1 {
+            let condition = args[0].to_bool();
+            if condition {
+                return Ok(Value::String("卖出".to_string()));
+            } else {
+                return Ok(Value::String("持有".to_string()));
+            }
+        }
+        
+        Err(RuntimeError::type_error("SELL 接受 0 或 1 个参数"))
+    }
+    
+    /// CLOSE() - 平仓信号
+    /// 返回 "卖出" 字符串（平仓即卖出），供回测引擎识别
+    fn builtin_close(&mut self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if args.is_empty() {
+            // CLOSE() - 无条件平仓
+            return Ok(Value::String("卖出".to_string()));
+        }
+        
+        // CLOSE(condition) - 条件平仓
+        if args.len() == 1 {
+            let condition = args[0].to_bool();
+            if condition {
+                return Ok(Value::String("卖出".to_string()));
+            } else {
+                return Ok(Value::String("持有".to_string()));
+            }
+        }
+        
+        Err(RuntimeError::type_error("CLOSE 接受 0 或 1 个参数"))
+    }
+    
+    /// POSITION() - 获取当前仓位状态
+    /// 返回当前持仓情况，从历史输出中获取
+    fn builtin_position(&mut self, args: &[Value]) -> Result<Value, RuntimeError> {
+        if !args.is_empty() {
+            return Err(RuntimeError::type_error("POSITION 不接受参数"));
+        }
+        
+        // 从上下文或历史数据中获取 position 变量
+        // 如果不存在，返回 0（无仓位）
+        if let Some(pos) = self.context.get("position") {
+            return Ok(pos.clone());
+        }
+        
+        // 尝试从历史输出获取
+        if let Some(pos) = self.get_time_series_value("position", 0) {
+            return Ok(pos);
+        }
+        
+        // 默认返回 0（无仓位）
+        Ok(Value::Number(0.0))
     }
 }

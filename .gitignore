@@ -8,6 +8,7 @@
 /test_data/*.csv
 /test_data/*.json
 /output/
+/test_data
 *.csv
 !examples/**/*.csv
 

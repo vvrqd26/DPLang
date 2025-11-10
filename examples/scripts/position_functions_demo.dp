@@ -1,0 +1,30 @@
+# 仓位操作函数演示
+# 展示 BUY(), SELL(), CLOSE(), POSITION() 的使用方法
+
+-- INPUT date:string, close:number, volume:number --
+-- OUTPUT signal:string, price:number --
+
+# 计算简单移动平均线
+ma20 = MA(close, 20)
+
+# ==================== 使用方法 1: 无条件信号 ====================
+# BUY()   - 返回 "买入" 信号
+# SELL()  - 返回 "卖出" 信号
+# CLOSE() - 返回 "卖出" 信号（平仓即卖出）
+
+# ==================== 使用方法 2: 条件信号 ====================
+# BUY(condition)   - 当条件为真时返回 "买入"，否则返回 "持有"
+# SELL(condition)  - 当条件为真时返回 "卖出"，否则返回 "持有"
+# CLOSE(condition) - 当条件为真时返回 "卖出"，否则返回 "持有"
+
+# ==================== 使用方法 3: 查询持仓状态 ====================
+# POSITION() - 返回当前持仓数量（从上下文或历史输出获取）
+
+# 示例策略：价格突破20日均线
+price_above_ma = close > ma20
+price_below_ma = close < ma20
+
+# 生成交易信号
+signal = BUY(price_above_ma and POSITION() == 0) ? BUY() : (SELL(price_below_ma and POSITION() > 0) ? SELL() : "持有")
+
+return [signal, close]
