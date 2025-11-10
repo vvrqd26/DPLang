@@ -1,0 +1,31 @@
+# 双均线交叉策略 - 用于回测
+# 金叉买入，死叉卖出
+
+-- INPUT date:string, close:number, volume:number --
+-- OUTPUT date:string, close:number, ma5:number, ma20:number, signal:string, position:number, profit:number --
+
+# 计算5日和20日均线
+ma5 = MA(close, 5)
+ma20 = MA(close, 20)
+
+# 获取前一日均线
+prev_ma5 = ma5[-1]
+prev_ma20 = ma20[-1]
+
+# 生成交易信号
+signal = (prev_ma5 != null and prev_ma20 != null and 
+          prev_ma5 <= prev_ma20 and ma5 > ma20) ? "买入" :
+         (prev_ma5 != null and prev_ma20 != null and 
+          prev_ma5 >= prev_ma20 and ma5 < ma20) ? "卖出" : "持有"
+
+# 计算仓位 (简化版本)
+position = signal == "买入" ? 1.0 : 
+           signal == "卖出" ? 0.0 : 
+           ref("position", 1, 0.0)
+
+# 计算收益
+prev_close = close[-1]
+profit = (prev_close != null and position > 0) ? 
+         (close - prev_close) / prev_close * 100 : 0.0
+
+return [date, close, ma5, ma20, signal, position, profit]

@@ -24,37 +24,94 @@ fn main() {
     }
     
     match args[1].as_str() {
-        "run" => {
+        // 场景化命令
+        "calc" => {
+            // 单次指标计算
             if args.len() < 3 {
                 eprintln!("错误: 请指定要运行的脚本文件");
-                eprintln!("用法: dplang run <script.dp> [data.csv]");
+                eprintln!("用法: dplang calc <script.dp> <data.csv>");
                 return;
             }
             if args.len() >= 4 {
-                // 使用 CSV 文件输入
-                run_script_with_csv(&args[2], &args[3]);
+                run_calc_mode(&args[2], &args[3]);
             } else {
-                // 交互式输入
-                run_script(&args[2]);
+                run_calc_interactive(&args[2]);
+            }
+        }
+        "backtest" => {
+            // 回测模式（批量历史数据处理）
+            if args.len() < 4 {
+                eprintln!("错误: 回测模式需要指定脚本和数据文件");
+                eprintln!("用法: dplang backtest <strategy.dp> <history.csv> [--output <dir>]");
+                return;
+            }
+            let output_dir = parse_output_dir(&args);
+            run_backtest_mode(&args[2], &args[3], output_dir.as_deref());
+        }
+        "screen" => {
+            // 策略选股模式（多股票批量筛选）
+            if args.len() < 4 {
+                eprintln!("错误: 选股模式需要指定策略和数据文件");
+                eprintln!("用法: dplang screen <strategy.dp> <stocks.csv> [--output <file>]");
+                return;
+            }
+            let output_file = parse_output_file(&args);
+            run_screen_mode(&args[2], &args[3], output_file.as_deref());
+        }
+        "monitor" => {
+            // 实时监控模式（持续流式计算）
+            if args.len() < 3 {
+                eprintln!("错误: 监控模式需要指定脚本文件");
+                eprintln!("用法: dplang monitor <script.dp> [data.csv] [--window <size>]");
+                return;
+            }
+            let csv_file = if args.len() >= 4 && !args[3].starts_with("--") {
+                Some(args[3].as_str())
+            } else {
+                None
+            };
+            let window_size = parse_window_size(&args);
+            run_monitor_mode(&args[2], csv_file, window_size);
+        }
+        "server" => {
+            // 任务编排服务器模式
+            let config_file = if args.len() >= 3 && !args[2].starts_with("--") {
+                &args[2]
+            } else {
+                "tasks.toml"
+            };
+            let port = parse_port(&args);
+            run_server_mode(config_file, port);
+        }
+        
+        // 兼容旧命令
+        "run" => {
+            println!("⚠️  'run' 命令已废弃，请使用 'calc' 命令");
+            if args.len() < 3 {
+                eprintln!("用法: dplang calc <script.dp> [data.csv]");
+                return;
+            }
+            if args.len() >= 4 {
+                run_calc_mode(&args[2], &args[3]);
+            } else {
+                run_calc_interactive(&args[2]);
             }
         }
         "daemon" => {
+            println!("⚠️  'daemon' 命令已废弃，请使用 'monitor' 命令");
             if args.len() < 3 {
-                eprintln!("错误: 请指定要运行的脚本文件");
-                eprintln!("用法: dplang daemon <script.dp> [data.csv]");
+                eprintln!("用法: dplang monitor <script.dp> [data.csv]");
                 return;
             }
-            let csv_args = if args.len() >= 4 {
-                &args[3..]
+            let csv_file = if args.len() >= 4 {
+                Some(args[3].as_str())
             } else {
-                &[]
+                None
             };
-            run_daemon(&args[2], csv_args);
-        }
-        "demo" => {
-            run_demo();
+            run_monitor_mode(&args[2], csv_file, 1000);
         }
         "orchestrate" => {
+            println!("⚠️  'orchestrate' 命令已废弃，请使用 'server' 命令");
             let config_file = if args.len() >= 3 {
                 &args[2]
             } else {
@@ -65,10 +122,17 @@ fn main() {
             } else {
                 8888
             };
-            run_orchestrate(config_file, port);
+            run_server_mode(config_file, port);
+        }
+        
+        "demo" => {
+            run_demo();
         }
         "help" | "-h" | "--help" => {
             print_usage();
+        }
+        "version" | "-v" | "--version" => {
+            print_version();
         }
         _ => {
             eprintln!("未知命令: {}", args[1]);
@@ -78,19 +142,352 @@ fn main() {
 }
 
 fn print_usage() {
-    println!("DPLang - 金融数据分析语言\n");
-    println!("用法:");
-    println!("  dplang run <script.dp>             运行指定的脚本文件 (交互式 JSON 输入)");
-    println!("  dplang run <script.dp> <data.csv>  使用 CSV 文件作为输入");
-    println!("  dplang daemon <script.dp> [data.csv]  实时流式计算模式");
-    println!("  dplang orchestrate [config] [port] 启动任务编排服务器");
-    println!("  dplang demo                        运行内置演示");
-    println!("  dplang help                        显示帮助信息\n");
-    println!("示例:");
-    println!("  dplang run examples/hello.dp");
-    println!("  dplang run examples/moving_average.dp data.csv");
-    println!("  dplang daemon examples/realtime.dp data.csv");
-    println!("  dplang orchestrate tasks.toml 8888");
+    println!("DPLang v0.3.0 - 金融数据分析语言\n");
+    println!("📊 场景化命令:");
+    println!("  dplang calc <script.dp> [data.csv]           单次指标计算");
+    println!("  dplang backtest <strategy.dp> <history.csv>  策略回测（批量历史数据）");
+    println!("  dplang screen <strategy.dp> <stocks.csv>     策略选股（多股票筛选）");
+    println!("  dplang monitor <script.dp> [data.csv]        实时监控（流式计算）");
+    println!("  dplang server [config.toml] [--port 8888]    任务编排服务器\n");
+    
+    println!("🔧 通用命令:");
+    println!("  dplang demo                                  运行内置演示");
+    println!("  dplang help                                  显示帮助信息");
+    println!("  dplang version                               显示版本信息\n");
+    
+    println!("📖 使用场景:");
+    println!("  • calc     - 计算单只股票的技术指标（如 MA、RSI、MACD）");
+    println!("  • backtest - 回测交易策略，评估历史表现");
+    println!("  • screen   - 从股票池中筛选符合条件的股票");
+    println!("  • monitor  - 实时监控市场数据，持续计算指标");
+    println!("  • server   - 启动编排服务器，管理多任务并发执行\n");
+    
+    println!("💡 示例:");
+    println!("  # 计算指标");
+    println!("  dplang calc examples/indicators.dp data/stock_600000.csv");
+    println!("");
+    println!("  # 回测策略");
+    println!("  dplang backtest examples/ma_cross.dp data/history.csv --output results/");
+    println!("");
+    println!("  # 策略选股");
+    println!("  dplang screen examples/momentum.dp data/all_stocks.csv --output selected.csv");
+    println!("");
+    println!("  # 实时监控");
+    println!("  dplang monitor examples/realtime_alerts.dp --window 1000");
+    println!("");
+    println!("  # 启动服务器");
+    println!("  dplang server tasks.toml --port 8888\n");
+    
+    println!("📚 更多信息: https://github.com/yourusername/dplang");
+}
+
+fn print_version() {
+    println!("DPLang v0.3.0");
+    println!(" 金融数据分析语言 - Financial Data Processing Language");
+}
+
+// ==================== 命令行参数解析 ====================
+
+fn parse_output_dir(args: &[String]) -> Option<String> {
+    for i in 0..args.len() {
+        if args[i] == "--output" && i + 1 < args.len() {
+            return Some(args[i + 1].clone());
+        }
+    }
+    None
+}
+
+fn parse_output_file(args: &[String]) -> Option<String> {
+    for i in 0..args.len() {
+        if args[i] == "--output" && i + 1 < args.len() {
+            return Some(args[i + 1].clone());
+        }
+    }
+    None
+}
+
+fn parse_window_size(args: &[String]) -> usize {
+    for i in 0..args.len() {
+        if args[i] == "--window" && i + 1 < args.len() {
+            if let Ok(size) = args[i + 1].parse::<usize>() {
+                return size;
+            }
+        }
+    }
+    1000 // 默认窗口大小
+}
+
+fn parse_port(args: &[String]) -> u16 {
+    for i in 0..args.len() {
+        if args[i] == "--port" && i + 1 < args.len() {
+            if let Ok(port) = args[i + 1].parse::<u16>() {
+                return port;
+            }
+        }
+    }
+    8888 // 默认端口
+}
+
+// ==================== 场景化命令实现 ====================
+
+/// 单次指标计算模式（交互式）
+fn run_calc_interactive(script_path: &str) {
+    println!("🧮 单次指标计算模式");
+    println!("脚本: {}\n", script_path);
+    run_script(script_path);
+}
+
+/// 单次指标计算模式（CSV输入）
+fn run_calc_mode(script_path: &str, csv_path: &str) {
+    println!("🧮 单次指标计算模式");
+    println!("脚本: {}", script_path);
+    println!("CSV: {}\n", csv_path);
+    run_script_with_csv(script_path, csv_path);
+}
+
+/// 策略回测模式
+fn run_backtest_mode(script_path: &str, csv_path: &str, output_dir: Option<&str>) {
+    println!("📈 策略回测模式");
+    println!("策略: {}", script_path);
+    println!("历史数据: {}", csv_path);
+    
+    let output = output_dir.unwrap_or("./backtest_results");
+    println!("输出目录: {}\n", output);
+    
+    // 创建输出目录
+    if let Err(e) = fs::create_dir_all(output) {
+        eprintln!("错误: 无法创建输出目录: {}", e);
+        return;
+    }
+    
+    // 读取脚本
+    let source = match fs::read_to_string(script_path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("错误: 无法读取脚本文件: {}", e);
+            return;
+        }
+    };
+    
+    // 读取CSV
+    let csv_content = match fs::read_to_string(csv_path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("错误: 无法读取CSV文件: {}", e);
+            return;
+        }
+    };
+    
+    // 解析CSV
+    let input_matrix = match parse_csv(&csv_content) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("CSV解析错误: {}", e);
+            return;
+        }
+    };
+    
+    println!("✅ 加载 {} 条历史数据\n", input_matrix.len());
+    
+    // 解析脚本
+    let mut lexer = Lexer::new(&source);
+    let tokens = match lexer.tokenize() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("词法分析错误: {:?}", e);
+            return;
+        }
+    };
+    
+    let mut parser = Parser::new(tokens);
+    let script = match parser.parse() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("语法分析错误: {:?}", e);
+            return;
+        }
+    };
+    
+    println!("✅ 脚本解析成功\n");
+    
+    // 执行回测
+    println!("🚀 开始回测...");
+    let start_time = std::time::Instant::now();
+    
+    let mut executor = DataStreamExecutor::new(script, input_matrix);
+    match executor.execute_all() {
+        Ok(output_matrix) => {
+            let elapsed = start_time.elapsed();
+            println!("\n✅ 回测完成! 耗时: {:.2}s\n", elapsed.as_secs_f64());
+            println!("输出结果: {} 条", output_matrix.len());
+            
+            // 保存结果
+            let output_csv = format_output_csv(&output_matrix);
+            let result_file = format!("{}/backtest_result.csv", output);
+            if let Err(e) = fs::write(&result_file, output_csv) {
+                eprintln!("错误: 无法保存结果: {}", e);
+            } else {
+                println!("结果已保存到: {}", result_file);
+            }
+            
+            // 计算简单统计
+            print_backtest_summary(&output_matrix);
+        }
+        Err(e) => {
+            eprintln!("\n❌ 回测错误: {:?}", e);
+        }
+    }
+}
+
+/// 策略选股模式
+fn run_screen_mode(script_path: &str, csv_path: &str, output_file: Option<&str>) {
+    println!("🔍 策略选股模式");
+    println!("策略: {}", script_path);
+    println!("股票数据: {}", csv_path);
+    
+    let output = output_file.unwrap_or("./selected_stocks.csv");
+    println!("输出文件: {}\n", output);
+    
+    // 读取脚本
+    let source = match fs::read_to_string(script_path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("错误: 无法读取脚本文件: {}", e);
+            return;
+        }
+    };
+    
+    // 读取CSV
+    let csv_content = match fs::read_to_string(csv_path) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("错误: 无法读取CSV文件: {}", e);
+            return;
+        }
+    };
+    
+    // 解析CSV
+    let input_matrix = match parse_csv(&csv_content) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("CSV解析错误: {}", e);
+            return;
+        }
+    };
+    
+    println!("✅ 加载 {} 只股票\n", input_matrix.len());
+    
+    // 解析脚本
+    let mut lexer = Lexer::new(&source);
+    let tokens = match lexer.tokenize() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("词法分析错误: {:?}", e);
+            return;
+        }
+    };
+    
+    let mut parser = Parser::new(tokens);
+    let script = match parser.parse() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("语法分析错误: {:?}", e);
+            return;
+        }
+    };
+    
+    println!("✅ 脚本解析成功\n");
+    
+    // 执行选股
+    println!("🚀 开始筛选...");
+    let start_time = std::time::Instant::now();
+    
+    let mut executor = DataStreamExecutor::new(script, input_matrix);
+    match executor.execute_all() {
+        Ok(output_matrix) => {
+            let elapsed = start_time.elapsed();
+            println!("\n✅ 筛选完成! 耗时: {:.2}s\n", elapsed.as_secs_f64());
+            
+            // 过滤符合条件的股票（假设有selected字段）
+            let selected: Vec<_> = output_matrix.iter()
+                .filter(|row| {
+                    row.get("selected")
+                        .and_then(|v| match v {
+                            Value::Bool(b) => Some(*b),
+                            _ => None,
+                        })
+                        .unwrap_or(true) // 如果没有selected字段，默认全部输出
+                })
+                .cloned()
+                .collect();
+            
+            println!("筛选出 {} 只股票", selected.len());
+            
+            // 保存结果
+            let output_csv = format_output_csv(&selected);
+            if let Err(e) = fs::write(output, &output_csv) {
+                eprintln!("错误: 无法保存结果: {}", e);
+            } else {
+                println!("结果已保存到: {}", output);
+            }
+            
+            // 打印前10条结果
+            println!("\n前 10 条结果:");
+            for (i, row) in selected.iter().take(10).enumerate() {
+                println!("  {}: {:?}", i + 1, row);
+            }
+        }
+        Err(e) => {
+            eprintln!("\n❌ 选股错误: {:?}", e);
+        }
+    }
+}
+
+/// 实时监控模式
+fn run_monitor_mode(script_path: &str, csv_file: Option<&str>, window_size: usize) {
+    println!("📡 实时监控模式");
+    println!("脚本: {}", script_path);
+    println!("窗口大小: {} 行\n", window_size);
+    
+    let csv_args: Vec<String> = csv_file.iter().map(|s| s.to_string()).collect();
+    run_daemon(script_path, &csv_args);
+}
+
+/// 任务编排服务器模式
+fn run_server_mode(config_file: &str, port: u16) {
+    println!("🔧 任务编排服务器模式");
+    run_orchestrate(config_file, port);
+}
+
+// ==================== 辅助函数 ====================
+
+fn print_backtest_summary(output: &[HashMap<String, Value>]) {
+    println!("\n══════════ 回测统计 ══════════");
+    println!("总交易数: {}", output.len());
+    
+    // 尝试计算基础统计
+    if let Some(profit_key) = output.first()
+        .and_then(|row| row.keys().find(|k| k.contains("profit") || k.contains("收益"))) 
+    {
+        let profits: Vec<f64> = output.iter()
+            .filter_map(|row| row.get(profit_key))
+            .filter_map(|v| match v {
+                Value::Number(n) => Some(*n),
+                _ => None,
+            })
+            .collect();
+        
+        if !profits.is_empty() {
+            let total_profit: f64 = profits.iter().sum();
+            let win_count = profits.iter().filter(|&&p| p > 0.0).count();
+            let win_rate = (win_count as f64 / profits.len() as f64) * 100.0;
+            
+            println!("总收益: {:.2}", total_profit);
+            println!("胜率: {:.2}% ({}/{})", win_rate, win_count, profits.len());
+        }
+    }
+    
+    println!("════════════════════════════\n");
 }
 
 fn run_script(file_path: &str) {

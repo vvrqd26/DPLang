@@ -1,0 +1,23 @@
+# 动量选股策略
+# 筛选出近期涨幅较大且成交量放大的股票
+
+-- INPUT stock_code:string, close:number, volume:number --
+-- OUTPUT stock_code:string, close:number, change_5d:number, vol_ratio:number, score:number, selected:bool --
+
+# 计算5日涨幅
+close_5d_ago = close[-5]
+change_5d = (close_5d_ago != null) ? 
+            (close - close_5d_ago) / close_5d_ago * 100 : 0.0
+
+# 计算量比（当前成交量 vs 5日平均成交量）
+ma_vol_5 = MA(volume, 5)
+vol_ratio = (ma_vol_5 != null and ma_vol_5 > 0) ? 
+            volume / ma_vol_5 : 1.0
+
+# 综合评分
+score = change_5d * 0.7 + (vol_ratio - 1.0) * 30
+
+# 筛选条件：5日涨幅>3%，量比>1.2，综合评分>5
+selected = (change_5d > 3.0 and vol_ratio > 1.2 and score > 5.0)
+
+return [stock_code, close, change_5d, vol_ratio, score, selected]

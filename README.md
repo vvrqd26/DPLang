@@ -121,6 +121,29 @@ DPLang 不仅仅是一个数据处理语言，更是一个**高性能流式计�
 
 ## 🚀 快速开始
 
+### 场景化命令行
+
+DPLang v0.3.0 提供清晰的场景化命令，让使用更直观：
+
+```bash
+# 📊 单次指标计算
+dplang calc examples/scripts/simple_indicators.dp data/stock.csv
+
+# 📈 策略回测
+dplang backtest examples/scripts/ma_crossover_strategy.dp data/history.csv --output results/
+
+# 🔍 策略选股
+dplang screen examples/scripts/momentum_screen.dp data/all_stocks.csv --output selected.csv
+
+# 📡 实时监控
+dplang monitor examples/scripts/realtime_alerts.dp --window 1000
+
+# 🔧 任务编排服务器
+dplang server tasks.toml --port 8888
+```
+
+**详细使用指南：** 请阅读 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md)
+
 ### 运行测试
 
 ```bash
@@ -131,10 +154,13 @@ cargo test
 
 **快速入门**：请阅读 [QUICKSTART.md](QUICKSTART.md) 获取详细的入门指南
 
+**场景化使用**：请阅读 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md) 了解不同场景的使用方法
+
 **示例代码**：
-- `examples/hello.dp` - 简单示例
-- `examples/moving_average.dp` - 移动平均线计算
-- `examples/technical_analysis.dp` - 综合技术分析
+- `examples/scripts/simple_indicators.dp` - 技术指标计算
+- `examples/scripts/ma_crossover_strategy.dp` - 双均线回测策略
+- `examples/scripts/momentum_screen.dp` - 动量选股策略
+- `examples/scripts/realtime_alerts.dp` - 实时异常监控
 - `examples/demo.rs` - Rust 集成示例
 
 ## 🔥 性能指标
@@ -396,7 +422,17 @@ DPLang/
 
 ## 🔜 下一步计划
 
-### 近期改进 (v0.2.0) - 正在进行
+### 最近更新 (v0.3.0) - 2024-11-10 ✅ 已完成
+1. **场景化命令行接口** ✅ 已完成
+   - ✅ 新增 `calc` 命令 - 单次指标计算
+   - ✅ 新增 `backtest` 命令 - 策略回测（自动统计收益、胜率）
+   - ✅ 新增 `screen` 命令 - 策略选股（批量筛选）
+   - ✅ 新增 `monitor` 命令 - 实时监控（取代 daemon）
+   - ✅ 新增 `server` 命令 - 任务编排（取代 orchestrate）
+   - ✅ 创建完整的场景化使用指南 [SCENARIOS_GUIDE.md](SCENARIOS_GUIDE.md)
+   - ✅ 提供四大场景示例脚本（指标计算、回测、选股、监控）
+
+### 近期改进 (v0.2.0) ✅ 已完成
 1. **错误信息增强** ✅ 基础完成
    - ✅ RuntimeError结构新增 line/column/context 字段
    - ✅ 显示错误发生的行号和列号
@@ -432,7 +468,8 @@ DPLang/
 ## 📄 参考文档
 
 ### 用户文档
-- [语言参考手册](docs/LANGUAGE_GUIDE.md) - **完整的语言使用指南**（推荐）
+- [**场景化使用指南**](SCENARIOS_GUIDE.md) - **四大场景完整使用指南**（推荐）
+- [语言参考手册](docs/LANGUAGE_GUIDE.md) - 完整的语言使用指南
 - [快速开始指南](QUICKSTART.md) - 快速上手
 - [守护进程模式指南](DAEMON_MODE_GUIDE.md) - 长驻服务模式
 - [编排系统快速开始](ORCHESTRATION_QUICKSTART.md) - 任务编排系统
