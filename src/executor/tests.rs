@@ -1519,3 +1519,194 @@ return [idx, total, args_count]
     // 检查第三行
     assert_eq!(results[2].get("idx"), Some(&Value::Number(2.0)));
 }
+
+// ==================== f-string 字符串插值测试 ====================
+
+#[test]
+fn test_fstring_basic() {
+    let source = r#"
+-- INPUT name:string, value:number --
+-- OUTPUT message:string --
+
+message = f"姓名: {name}, 数值: {value}"
+return [message]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("name".to_string(), Value::String("张三".to_string()));
+    executor.set_input("value".to_string(), Value::Number(100.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::String("姓名: 张三, 数值: 100".to_string()));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_fstring_with_expressions() {
+    let source = r#"
+-- INPUT price:number, change:number --
+-- OUTPUT message:string --
+
+涨幅 = change * 100
+message = f"价格 {price} 元，涨幅 {涨幅}%，总价 {price + change}"
+return [message]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("price".to_string(), Value::Number(100.0));
+    executor.set_input("change".to_string(), Value::Number(0.05));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::String("价格 100 元，涨幅 5%，总价 100.05".to_string()));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_fstring_multiple() {
+    let source = r#"
+-- INPUT code:string, price:number --
+-- OUTPUT msg1:string, msg2:string --
+
+msg1 = f"股票 {code}"
+msg2 = f"价格 {price}"
+return [msg1, msg2]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("code".to_string(), Value::String("AAPL".to_string()));
+    executor.set_input("price".to_string(), Value::Number(150.5));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::String("股票 AAPL".to_string()));
+        assert_eq!(arr[1], Value::String("价格 150.5".to_string()));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+// ==================== when 表达式测试 ====================
+
+#[test]
+fn test_when_expression_basic() {
+    let source = r#"
+-- INPUT score:number --
+-- OUTPUT grade:string --
+
+grade = when score >= 90 -> "A", score >= 80 -> "B", score >= 60 -> "C", else -> "不及格"
+return [grade]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 测试不同分数
+    let test_cases = vec![
+        (95.0, "A"),
+        (85.0, "B"),
+        (65.0, "C"),
+        (55.0, "不及格"),
+    ];
+    
+    for (score, expected_grade) in test_cases {
+        let mut executor = Executor::new();
+        executor.set_input("score".to_string(), Value::Number(score));
+        
+        let result = executor.execute_data_script(&script).unwrap();
+        
+        if let Some(Value::Array(arr)) = result {
+            assert_eq!(arr[0], Value::String(expected_grade.to_string()), 
+                      "分数 {} 应该是 {}", score, expected_grade);
+        } else {
+            panic!("Expected array result");
+        }
+    }
+}
+
+#[test]
+fn test_when_expression_with_fstring() {
+    let source = r#"
+-- INPUT score:number --
+-- OUTPUT message:string --
+
+message = when score >= 90 -> f"成绩 {score} 为优秀", score >= 60 -> f"成绩 {score} 及格", else -> f"成绩 {score} 不及格"
+return [message]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    let mut executor = Executor::new();
+    executor.set_input("score".to_string(), Value::Number(95.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::String("成绩 95 为优秀".to_string()));
+    } else {
+        panic!("Expected array result");
+    }
+}
+
+#[test]
+fn test_when_expression_no_else() {
+    let source = r#"
+-- INPUT x:number --
+-- OUTPUT result:number --
+
+# when 表达式无 else 分支，返回 null
+result = when x > 10 -> 100, x > 5 -> 50
+return [result]
+"#;
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().unwrap();
+    let mut parser = Parser::new(tokens);
+    let script = parser.parse().unwrap();
+    
+    // 测试无匹配的情况
+    let mut executor = Executor::new();
+    executor.set_input("x".to_string(), Value::Number(3.0));
+    
+    let result = executor.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result {
+        assert_eq!(arr[0], Value::Null);
+    } else {
+        panic!("Expected array result");
+    }
+    
+    // 测试匹配的情况
+    let mut executor2 = Executor::new();
+    executor2.set_input("x".to_string(), Value::Number(15.0));
+    
+    let result2 = executor2.execute_data_script(&script).unwrap();
+    
+    if let Some(Value::Array(arr)) = result2 {
+        assert_eq!(arr[0], Value::Number(100.0));
+    } else {
+        panic!("Expected array result");
+    }
+}

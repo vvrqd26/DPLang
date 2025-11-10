@@ -1,0 +1,15 @@
+-- INPUT code:string, price:number, change:number --
+-- OUTPUT message:string --
+
+# 测试 f-string 基础功能
+name = "苹果"
+message = f"股票 {code} 当前价格为 {price} 元"
+
+# 测试 f-string 中的表达式
+涨幅 = change * 100
+详细信息 = f"股票 {code} 涨幅为 {涨幅}%，价格 {price}"
+
+# 测试 f-string 中的计算
+summary = f"{name}：{price + change} 元（涨跌 {change}）"
+
+return [message, 详细信息, summary]

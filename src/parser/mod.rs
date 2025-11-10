@@ -846,6 +846,10 @@ impl Parser {
                 self.advance();
                 Ok(Expr::String(s.clone()))
             }
+            TokenType::FString(parts) => {
+                self.advance();
+                Ok(Expr::FString(parts.clone()))
+            }
             TokenType::True => {
                 self.advance();
                 Ok(Expr::Bool(true))
@@ -857,6 +861,9 @@ impl Parser {
             TokenType::Null => {
                 self.advance();
                 Ok(Expr::Null)
+            }
+            TokenType::When => {
+                self.parse_when_expression()
             }
             TokenType::Identifier(_) => {
                 let name = self.expect_identifier("")?;
@@ -932,6 +939,41 @@ impl Parser {
             params,
             body: Box::new(body),
         })
+    }
+    
+    // when 表达式：when condition1 -> result1, condition2 -> result2, else -> defaultResult
+    fn parse_when_expression(&mut self) -> Result<Expr, ParseError> {
+        self.consume(TokenType::When, "期望 when")?;
+        
+        let mut branches = Vec::new();
+        let mut else_expr = None;
+        
+        loop {
+            self.skip_newlines();
+            
+            // 检查是否是 else 分支
+            if self.check(&TokenType::Else) {
+                self.advance();
+                self.consume(TokenType::Arrow, "期望 else 后跟着 ->")?;
+                else_expr = Some(Box::new(self.parse_ternary()?));
+                break;
+            }
+            
+            // 解析条件
+            let condition = self.parse_or()?;
+            self.consume(TokenType::Arrow, "期望 when 分支的 ->")?;
+            let result = self.parse_ternary()?;
+            
+            branches.push(WhenBranch { condition, result });
+            
+            // 检查是否还有更多分支
+            if !self.match_token(&[TokenType::Comma]) {
+                self.skip_newlines();
+                break;
+            }
+        }
+        
+        Ok(Expr::When { branches, else_expr })
     }
     
     fn is_lambda_params(&self) -> bool {

@@ -345,6 +345,38 @@ impl SemanticAnalyzer {
                 self.analyze_expr(else_expr);
             }
             
+            Expr::FString(parts) => {
+                // 分析 f-string 中的表达式
+                for part in parts {
+                    if let crate::lexer::FStringPart::Expr(expr_str) = part {
+                        // 解析并分析嵌入的表达式
+                        if let Ok(mut lexer) = std::panic::catch_unwind(|| crate::lexer::Lexer::new(expr_str)) {
+                            if let Ok(tokens) = lexer.tokenize() {
+                                let mut parser = crate::parser::Parser::new(tokens);
+                                if let Ok(script) = parser.parse() {
+                                    if let crate::parser::Script::DataScript { body, .. } = script {
+                                        for stmt in &body {
+                                            self.analyze_stmt(stmt);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            Expr::When { branches, else_expr } => {
+                // 分析 when 表达式的所有分支
+                for branch in branches {
+                    self.analyze_expr(&branch.condition);
+                    self.analyze_expr(&branch.result);
+                }
+                if let Some(else_result) = else_expr {
+                    self.analyze_expr(else_result);
+                }
+            }
+            
             Expr::Call { callee, args } => {
                 // 检查函数是否定义
                 if !self.builtin_functions.contains(callee) && !self.scope.is_defined(callee) {

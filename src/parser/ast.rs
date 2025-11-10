@@ -1,6 +1,14 @@
 // DPLang 语法分析器 - AST 定义
 
 use std::fmt;
+use crate::lexer::FStringPart;
+
+/// when 表达式的分支
+#[derive(Debug, Clone, PartialEq)]
+pub struct WhenBranch {
+    pub condition: Expr,
+    pub result: Expr,
+}
 
 /// 表达式节点
 #[derive(Debug, Clone, PartialEq)]
@@ -10,6 +18,9 @@ pub enum Expr {
     
     /// 字符串字面量
     String(String),
+    
+    /// f-string 字符串插值
+    FString(Vec<FStringPart>),
     
     /// 布尔字面量
     Bool(bool),
@@ -41,6 +52,12 @@ pub enum Expr {
         condition: Box<Expr>,
         then_expr: Box<Expr>,
         else_expr: Box<Expr>,
+    },
+    
+    /// when 表达式
+    When {
+        branches: Vec<WhenBranch>,
+        else_expr: Option<Box<Expr>>,
     },
     
     /// 函数调用

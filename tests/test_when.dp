@@ -1,0 +1,21 @@
+-- INPUT score:number --
+-- OUTPUT grade:string, level:string --
+
+# 测试 when 表达式基础功能
+grade = when score >= 90 -> "A", 
+             score >= 80 -> "B",
+             score >= 60 -> "C",
+             else -> "不及格"
+
+# 测试 when 表达式嵌套计算
+level = when score >= 90 -> "优秀",
+             score >= 70 -> "良好", 
+             score >= 60 -> "及格",
+             else -> "需努力"
+
+# 测试 when 表达式在其他表达式中
+message = when score >= 90 -> f"恭喜！成绩 {score} 为优秀",
+               score >= 60 -> f"及格了，成绩 {score}",
+               else -> f"成绩 {score} 不及格，需加油"
+
+return [grade, level, message]

@@ -3,6 +3,7 @@
 use super::Executor;
 use crate::parser::{Expr, BinaryOp, UnaryOp, FunctionDef};
 use crate::runtime::{Value, RuntimeError};
+use crate::lexer::{FStringPart, Lexer};
 use std::collections::HashMap;
 
 impl Executor {
@@ -11,6 +12,47 @@ impl Executor {
         match expr {
             Expr::Number(n) => Ok(Value::Number(*n)),
             Expr::String(s) => Ok(Value::String(s.clone())),
+            
+            Expr::FString(parts) => {
+                // 处理 f-string 字符串插值
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        FStringPart::Text(text) => result.push_str(text),
+                        FStringPart::Expr(expr_str) => {
+                            // 解析表达式
+                            let mut lexer = Lexer::new(expr_str);
+                            let tokens = lexer.tokenize()
+                                .map_err(|e| RuntimeError::type_error(&format!("f-string 表达式解析错误: {}", e)))?;
+                            let mut parser = crate::parser::Parser::new(tokens);
+                            let script = parser.parse()
+                                .map_err(|e| RuntimeError::type_error(&format!("f-string 表达式解析错误: {}", e)))?;
+                            
+                            // 执行表达式（假设是单个表达式语句）
+                            if let crate::parser::Script::DataScript { body, .. } = script {
+                                if let Some(crate::parser::Stmt::Expression(expr)) = body.first() {
+                                    let value = self.execute_expr(expr)?;
+                                    // 使用自定义格式化，字符串不加引号
+                                    let formatted = match value {
+                                        Value::String(s) => s,
+                                        Value::Number(n) => n.to_string(),
+                                        Value::Bool(b) => b.to_string(),
+                                        Value::Null => "null".to_string(),
+                                        _ => value.to_string(),
+                                    };
+                                    result.push_str(&formatted);
+                                } else {
+                                    return Err(RuntimeError::type_error("f-string 中的表达式无效"));
+                                }
+                            } else {
+                                return Err(RuntimeError::type_error("f-string 中的表达式无效"));
+                            }
+                        }
+                    }
+                }
+                Ok(Value::String(result))
+            }
+            
             Expr::Bool(b) => Ok(Value::Bool(*b)),
             Expr::Null => Ok(Value::Null),
             
@@ -72,6 +114,23 @@ impl Executor {
                     self.execute_expr(then_expr)
                 } else {
                     self.execute_expr(else_expr)
+                }
+            }
+            
+            Expr::When { branches, else_expr } => {
+                // when 表达式：依次求值每个分支的条件
+                for branch in branches {
+                    let cond = self.execute_expr(&branch.condition)?;
+                    if cond.to_bool() {
+                        return self.execute_expr(&branch.result);
+                    }
+                }
+                
+                // 如果所有条件都不满足，返回 else 分支或 null
+                if let Some(else_result) = else_expr {
+                    self.execute_expr(else_result)
+                } else {
+                    Ok(Value::Null)
                 }
             }
             

@@ -2,6 +2,13 @@
 
 use std::fmt;
 
+/// f-string 的组成部分
+#[derive(Debug, Clone, PartialEq)]
+pub enum FStringPart {
+    Text(String),       // 普通文本
+    Expr(String),       // 嵌入的表达式源码
+}
+
 /// Token 类型定义
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
@@ -10,6 +17,7 @@ pub enum TokenType {
     If,
     Elif,
     Else,
+    When,
     Package,
     Mut,
     Null,
@@ -28,6 +36,7 @@ pub enum TokenType {
     Identifier(String),
     Number(f64),
     String(String),
+    FString(Vec<FStringPart>),  // f-string 支持
     
     // 运算符
     Plus,       // +
@@ -205,7 +214,14 @@ impl Lexer {
             return self.scan_number();
         }
         
-        // 字符串
+        // 字符串和 f-string
+        if ch == 'f' && !self.is_at_end() && (self.peek_ahead(1) == Some('"') || self.peek_ahead(1) == Some('\'')) {
+            self.advance(); // 跳过 'f'
+            let quote = self.peek();
+            return self.scan_fstring(quote);
+        }
+        
+        // 普通字符串
         if ch == '"' || ch == '\'' {
             return self.scan_string(ch);
         }
@@ -412,6 +428,91 @@ impl Lexer {
         Ok(Token::new(TokenType::String(value.clone()), format!("{}{}{}", quote, value, quote), start_line, start_column))
     }
     
+    fn scan_fstring(&mut self, quote: char) -> Result<Token, LexError> {
+        let start_line = self.line;
+        let start_column = self.column - 1; // 考虑 'f' 字符
+        let mut parts = Vec::new();
+        let mut current_text = String::new();
+        
+        self.advance(); // 跳过开始引号
+        
+        while !self.is_at_end() && self.peek() != quote {
+            if self.peek() == '{' {
+                // 当前文本保存为 Text 部分
+                if !current_text.is_empty() {
+                    parts.push(FStringPart::Text(current_text.clone()));
+                    current_text.clear();
+                }
+                
+                self.advance(); // 跳过 '{'
+                
+                // 读取表达式直到 '}'
+                let mut expr_str = String::new();
+                let mut brace_depth = 1;
+                
+                while !self.is_at_end() && brace_depth > 0 {
+                    let ch = self.peek();
+                    if ch == '{' {
+                        brace_depth += 1;
+                    } else if ch == '}' {
+                        brace_depth -= 1;
+                        if brace_depth == 0 {
+                            break;
+                        }
+                    }
+                    expr_str.push(self.advance());
+                }
+                
+                if self.is_at_end() || self.peek() != '}' {
+                    return Err(LexError {
+                        message: "f-string 中未闭合的 {}".to_string(),
+                        line: self.line,
+                        column: self.column,
+                    });
+                }
+                
+                self.advance(); // 跳过 '}'
+                parts.push(FStringPart::Expr(expr_str.trim().to_string()));
+                
+            } else if self.peek() == '\\' {
+                self.advance();
+                if self.is_at_end() {
+                    break;
+                }
+                let escaped = match self.peek() {
+                    'n' => '\n',
+                    't' => '\t',
+                    'r' => '\r',
+                    '\\' => '\\',
+                    '"' => '"',
+                    '\'' => '\'',
+                    _ => self.peek(),
+                };
+                current_text.push(escaped);
+                self.advance();
+            } else {
+                current_text.push(self.advance());
+            }
+        }
+        
+        if self.is_at_end() {
+            return Err(LexError {
+                message: "未闭合的 f-string".to_string(),
+                line: start_line,
+                column: start_column,
+            });
+        }
+        
+        // 保存剩余的文本
+        if !current_text.is_empty() {
+            parts.push(FStringPart::Text(current_text));
+        }
+        
+        self.advance(); // 跳过结束引号
+        
+        Ok(Token::new(TokenType::FString(parts), format!("f{}…{}", quote, quote), start_line, start_column))
+    }
+    
     fn scan_identifier(&mut self) -> Result<Token, LexError> {
         let start_line = self.line;
         let start_column = self.column;
@@ -426,6 +527,7 @@ impl Lexer {
             "if" => TokenType::If,
             "elif" => TokenType::Elif,
             "else" => TokenType::Else,
+            "when" => TokenType::When,
             "package" => TokenType::Package,
             "mut" => TokenType::Mut,
             "null" => TokenType::Null,
